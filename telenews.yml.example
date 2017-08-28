@@ -1,0 +1,16 @@
+telegram:
+  token:
+twitter:
+  consumerKey:
+  consumerSecret:
+  token:
+  tokenSecret:
+vk:
+  secureKey:
+list:
+  rss:
+    - http://eve-ru.com/rss/indexfeed
+  vk:
+    - nyashky
+  twitter:
+    - eveonline
