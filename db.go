@@ -41,9 +41,9 @@ func dbInit() (dataBase DB, err error) {
 	return dataBase, nil
 }
 
-func (dataBase *DB) InsertInfo(name string, date time.Time) (id int64, err error) {
+func (dataBase *DB) InsertInfo(idNews, name string, date time.Time) (id int64, err error) {
 	timeNow := time.Now()
-	hash := GenHash(name, date)
+	hash := GenHash(idNews, name, date)
 
 	tx, err := dataBase.db.Begin()
 	if err != nil {
@@ -171,10 +171,14 @@ func (dataBase *DB) DeleteUser(chatID int64) (err error) {
 
 //ToDo: Удаление по таймингу
 
-func GenHash(name string, date time.Time) (hash string) {
+func GenHash(id, name string, date time.Time) (hash string) {
 	h := md5.New()
-	io.WriteString(h, name)
-	io.WriteString(h, date.String())
+	if id == "" {
+		io.WriteString(h, name)
+		io.WriteString(h, date.String())
+	} else {
+		io.WriteString(h, id)
+	}
 	hash = fmt.Sprintf("%x", h.Sum(nil))
 
 	return hash

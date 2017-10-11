@@ -12,6 +12,8 @@ import (
 
 	"io/ioutil"
 
+	"strconv"
+
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
@@ -92,7 +94,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	TeleNews.bot.Debug = true
+	TeleNews.bot.Debug = false
 
 	fmt.Println("Начал работу!")
 
@@ -222,13 +224,13 @@ func (TeleNews *TeleNewsStruct) parseVK() {
 
 		for _, postVk := range vkjson.Response.Items {
 			postVkDate := time.Unix(postVk.Date, 0)
-			if TeleNews.testFeed(postVk.Text, postVkDate) {
+			if TeleNews.testFeed(strconv.Itoa(postVk.Id), postVk.Text, postVkDate) {
 				link := fmt.Sprintf("https://vk.com/%s?w=wall%v_%v", groupVkName, postVk.OwnerID, postVk.Id)
 				err = TeleNews.sendMSG(groupVkName, postVk.Text, link)
 				if err != nil {
 					TeleNews.logger.Println("[ERR] Ошибка отправления сообщения в TG ", err)
 				} else {
-					_, err = TeleNews.dataBase.InsertInfo(postVk.Text, postVkDate)
+					_, err = TeleNews.dataBase.InsertInfo(strconv.Itoa(postVk.Id), postVk.Text, postVkDate)
 					if err != nil {
 						TeleNews.logger.Println("[ERR] Ошибка добаления новости в БД ", err)
 					}
@@ -249,10 +251,10 @@ func (TeleNews *TeleNewsStruct) parseTwitter() {
 
 		for _, tweet := range search.Statuses {
 			twDate, _ := time.Parse(time.RubyDate, tweet.CreatedAt)
-			if TeleNews.testFeed(tweet.Text, twDate) {
+			if TeleNews.testFeed(tweet.IDStr, tweet.Text, twDate) {
 				if tweet.Retweeted == false {
 					link := fmt.Sprintf("https://twitter.com/%s/status/%s\n", tweet.User.ScreenName, tweet.IDStr)
-					_, err = TeleNews.dataBase.InsertInfo(tweet.Text, twDate)
+					_, err = TeleNews.dataBase.InsertInfo(tweet.IDStr, tweet.Text, twDate)
 					if err != nil {
 						TeleNews.logger.Println("[ERR] Ошибка добаления новости в БД ", err)
 						return
@@ -284,8 +286,8 @@ func (TeleNews *TeleNewsStruct) parseRSS() {
 		}
 
 		for _, item := range feed.Items {
-			if TeleNews.testFeed(item.Title, *item.PublishedParsed) == true {
-				_, err = TeleNews.dataBase.InsertInfo(item.Title, *item.PublishedParsed)
+			if TeleNews.testFeed("", item.Title, *item.PublishedParsed) == true {
+				_, err = TeleNews.dataBase.InsertInfo("", item.Title, *item.PublishedParsed)
 				if err != nil {
 					TeleNews.logger.Println("[ERR] Ошибка добаления новости в БД ", err)
 					return
@@ -301,8 +303,14 @@ func (TeleNews *TeleNewsStruct) parseRSS() {
 	}
 }
 
-func (TeleNews *TeleNewsStruct) testFeed(title string, date time.Time) bool {
-	hash := GenHash(title, date)
+func (TeleNews *TeleNewsStruct) testFeed(id, title string, date time.Time) bool {
+	var hash string
+
+	if id == "" {
+		hash = GenHash("", title, date)
+	} else {
+		hash = GenHash(id, "", time.Now())
+	}
 	rows, err := TeleNews.dataBase.SelectInfo(hash)
 	if err != nil {
 		return false
