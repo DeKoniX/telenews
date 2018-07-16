@@ -21,12 +21,12 @@ type Item struct {
 func (item *Item) Insert(source Source) (_ int, _ error) {
 	a := db.Model(&source).Association("Items")
 
-	item.Hash = genHash(source.UserID, item.Title, item.Text)
+	item.Hash = genHash(source.ID, item.Title, item.Text)
 
 	itemTest := Item{}
 	itemTest.SelectByHash(item.Hash)
 	if itemTest.Hash == item.Hash {
-		return a.Count(), alreadyExists
+		return a.Count(), errAlreadyExists
 	} else {
 		if err := a.Append(item).Error; err != nil {
 			return 0, err
@@ -58,9 +58,9 @@ func (item Item) Delete() error {
 	return nil
 }
 
-func genHash(userID uint, title, text string) (hash string) {
+func genHash(sourceID uint, title, text string) (hash string) {
 	h := md5.New()
-	io.WriteString(h, strconv.Itoa(int(userID)))
+	io.WriteString(h, strconv.Itoa(int(sourceID)))
 	io.WriteString(h, title)
 	io.WriteString(h, text)
 	hash = fmt.Sprintf("%x", h.Sum(nil))

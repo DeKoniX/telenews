@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	db            *gorm.DB
-	alreadyExists = errors.New("Item already exists")
+	db               *gorm.DB
+	errAlreadyExists = errors.New("Item already exists")
 )
 
 func Init(address, username, password, dbname string) (err error) {

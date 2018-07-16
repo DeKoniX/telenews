@@ -25,14 +25,19 @@ func TestItem(t *testing.T) {
 		t.Error("[ERR] Append Source 2: ", user, err, appSource2)
 	}
 
-	appItem1, err := appendItem(appSource1, "Title 1", "Text 1", "Hash 1")
+	appItem1, err := appendItem(appSource1, "Title 1", "Text 1")
 	if err != nil {
 		t.Error("[ERR] Append Item source 1: ", appSource1, appItem1, err)
 	}
 
-	appItem2, err := appendItem(appSource2, "Title 1", "Text 1", "Hash 1")
-	if err != alreadyExists || err == nil {
+	appItem2, err := appendItem(appSource2, "Title 1", "Text 1")
+	if err != nil {
 		t.Error("[ERR] Append Item source 2: ", appSource2, appItem2, err)
+	}
+
+	appExistItem, err := appendItem(appSource1, "Title 1", "Text 1")
+	if err != errAlreadyExists {
+		t.Error("[ERR] Append exist Item: ", appSource1, appExistItem, err)
 	}
 
 	appItems, count, err := Item{}.Select(appSource1)
@@ -65,8 +70,8 @@ func TestItem(t *testing.T) {
 	}
 }
 
-func appendItem(source Source, title, text, hash string) (item Item, err error) {
-	item = Item{Title: title, Text: text, Hash: hash}
+func appendItem(source Source, title, text string) (item Item, err error) {
+	item = Item{Title: title, Text: text}
 	_, err = item.Insert(source)
 
 	return item, err
