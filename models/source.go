@@ -6,14 +6,14 @@ type SourceType string
 
 var (
 	Twitter SourceType = "twitter"
-	VKGroup SourceType = "vk_group"
+	VKWall  SourceType = "vk_wall"
 	RSS     SourceType = "rss"
 )
 
 type Source struct {
 	gorm.Model
 	Type   SourceType
-	URL    string
+	Query  string
 	Items  []Item
 	UserID uint
 }
@@ -39,8 +39,8 @@ func (source Source) SelectByType(user User, sourceType SourceType) (sources []S
 	return sources, err
 }
 
-func (source *Source) SelectByURLAndType(user User, url string, sourceType SourceType) error {
-	err := db.Where("user_id = ? AND url = ? AND type = ?", user.ID, url, sourceType).First(&source).Error
+func (source *Source) SelectByQueryAndType(user User, query string, sourceType SourceType) error {
+	err := db.Where("user_id = ? AND query = ? AND type = ?", user.ID, query, sourceType).First(&source).Error
 	return err
 }
 

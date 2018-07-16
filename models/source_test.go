@@ -23,8 +23,8 @@ func TestSource(t *testing.T) {
 		t.Error("[ERR] Append Source user 1: ", user, err, appSource1)
 	}
 
-	// testSource: url: test_url_2, VKGroup
-	appSource2, err := appendSource(user2, "test_url_2", VKGroup)
+	// testSource: url: test_url_2, VKWall
+	appSource2, err := appendSource(user2, "test_url_2", VKWall)
 	if err != nil {
 		t.Error("[ERR] Append Source user 2: ", user2, err, appSource2)
 	}
@@ -33,18 +33,18 @@ func TestSource(t *testing.T) {
 	if err != nil {
 		t.Error("[ERR] Get Sources user: ", user, err, sources)
 	}
-	if sources[0].URL != appSource1.URL && sources[0].Type != appSource1.Type && err != nil {
+	if sources[0].Query != appSource1.Query && sources[0].Type != appSource1.Type && err != nil {
 		t.Error("[ERR] Do not match sources: ", user, err, sources, appSource1)
 	}
 
 	sources2, err := Source{}.SelectByType(user, Twitter)
-	if sources2[0].URL == appSource1.URL && sources2[0].Type == appSource1.Type && err != nil {
+	if sources2[0].Query == appSource1.Query && sources2[0].Type == appSource1.Type && err != nil {
 		t.Error("[ERR] Do not match sources by type: ", user2, err, sources2, appSource1)
 	}
 
 	testSource := Source{}
-	err = testSource.SelectByURLAndType(user2, appSource2.URL, appSource2.Type)
-	if testSource.URL != appSource2.URL && testSource.Type != appSource2.Type && err != nil {
+	err = testSource.SelectByQueryAndType(user2, appSource2.Query, appSource2.Type)
+	if testSource.Query != appSource2.Query && testSource.Type != appSource2.Type && err != nil {
 		t.Error("[ERR] Do not match sources by url and type: ", user2, err, testSource, appSource2)
 	}
 
@@ -70,7 +70,7 @@ func TestSource(t *testing.T) {
 }
 
 func appendSource(user User, url string, sourceType SourceType) (source Source, err error) {
-	source = Source{URL: url, Type: sourceType}
+	source = Source{Query: url, Type: sourceType}
 	_, err = source.Insert(user)
 
 	return source, err

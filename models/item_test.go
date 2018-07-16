@@ -19,8 +19,8 @@ func TestItem(t *testing.T) {
 		t.Error("[ERR] Append Source 1: ", user, err, appSource1)
 	}
 
-	// testSource: url: test_url_2, VKGroup
-	appSource2, err := appendSource(user, "test_url_2", VKGroup)
+	// testSource: url: test_url_2, VKWall
+	appSource2, err := appendSource(user, "test_url_2", VKWall)
 	if err != nil {
 		t.Error("[ERR] Append Source 2: ", user, err, appSource2)
 	}

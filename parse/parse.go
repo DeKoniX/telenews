@@ -1,7 +1,6 @@
 package parse
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/dghubble/go-twitter/twitter"
@@ -14,10 +13,14 @@ type ParseNewsStruct struct {
 		token  *oauth1.Token
 		client *twitter.Client
 	}
+	vk struct {
+		secureKey string
+	}
 	httpClient *http.Client
-	logger     *log.Logger
 }
 
-func InitParse() (parseNews *ParseNewsStruct) {
-	return parseNews
+type newsStruct struct {
+	Title string
+	MSG   string
+	Link  string
 }

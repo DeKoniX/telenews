@@ -1,32 +1,21 @@
 package parse
 
-//func (ParseNews *ParseNewsStruct) parseRSS() {
-//	var fp *gofeed.Parser
-//	var feed *gofeed.Feed
-//	var err error
-//
-//	for _, uri := range ParseNews.config.List.Rss {
-//		fp = gofeed.NewParser()
-//		feed, err = fp.ParseURL(uri)
-//		if err != nil {
-//			ParseNews.logger.Println("[ERR] Ошибка чтения RSS ленты ", uri, ": ", err)
-//			return
-//		}
-//
-//		for _, item := range feed.Items {
-//			if ParseNews.testFeed("", item.Title, *item.PublishedParsed) == true {
-//				_, err = ParseNews.dataBase.InsertInfo("", item.Title, *item.PublishedParsed)
-//				if err != nil {
-//					ParseNews.logger.Println("[ERR] Ошибка добаления новости в БД ", err)
-//					return
-//				} else {
-//					err = ParseNews.sendMSG(feed.Title, item.Title, item.Link)
-//					if err != nil {
-//						ParseNews.logger.Println("[ERR] Ошибка отправления сообщения в TG ", err)
-//						return
-//					}
-//				}
-//			}
-//		}
-//	}
-//}
+import "github.com/mmcdole/gofeed"
+
+func (ParseNews ParseNewsStruct) parseRSS(url string) (rssNews []newsStruct, err error) {
+	fp := gofeed.NewParser()
+	feed, err := fp.ParseURL(url)
+	if err != nil {
+		return rssNews, err
+	}
+	for _, news := range feed.Items {
+		rssNews = append(rssNews, newsStruct{
+			Title: news.Title,
+			Link:  news.Link,
+		})
+		if len(rssNews) >= 5 {
+			break
+		}
+	}
+	return rssNews, nil
+}

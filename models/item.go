@@ -14,6 +14,7 @@ type Item struct {
 	gorm.Model
 	Title    string
 	Text     string
+	Link     string
 	Hash     string `gorm:"unique;not null"`
 	SourceID uint
 }
