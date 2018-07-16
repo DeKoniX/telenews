@@ -1,16 +1,20 @@
-package db
+package models
 
-import "github.com/jinzhu/gorm"
+import (
+	"time"
+)
 
 type User struct {
-	gorm.Model
+	ID        uint `gorm:"primary_key"`
 	UserName  string
 	ChatID    int64 `gorm:"unique;not null"`
-	Favorites []Favorite
+	Sources   []Source
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
-func (user User) Insert() error {
-	b := db.NewRecord(user) // обновляю, или создаю нового пользователя
+func (user *User) Insert() error {
+	b := db.NewRecord(user)
 	if b == true {
 		if err := db.Create(&user).Error; err != nil {
 			return err
@@ -21,6 +25,11 @@ func (user User) Insert() error {
 		}
 	}
 	return nil
+}
+
+func (user *User) SelectByChatId(chatID int64) error {
+	err := db.Where("chat_id = ?", chatID).First(&user).Error
+	return err
 }
 
 func (user *User) Delete() error {

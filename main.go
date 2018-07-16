@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"project/dknote/models"
 	"time"
 
-	"github.com/DeKoniX/telenews/db"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/jinzhu/gorm"
 )
@@ -39,7 +39,7 @@ func main() {
 	}
 	TeleNews.logger.Printf("%+v\n", TeleNews.config)
 
-	TeleNews.db, err = db.Init(
+	TeleNews.db, err = models.Init(
 		TeleNews.config.DB.Host,
 		TeleNews.config.DB.Port,
 		TeleNews.config.DB.UserName,
@@ -85,7 +85,7 @@ func (TeleNews *teleNewsStruct) tgUpdate() {
 
 	for update := range updates {
 		if update.Message.Text == "/start" {
-			var user db.User
+			var user models.User
 			user.UserName = update.Message.From.UserName
 			user.ChatID = update.Message.Chat.ID
 			TeleNews.db.Create(&user)
@@ -101,7 +101,7 @@ func (TeleNews *teleNewsStruct) tgUpdate() {
 		}
 
 		if update.Message.Text == "/stop" {
-			TeleNews.db.Where("chat_id = ?", update.Message.Chat.ID).Delete(&db.User{})
+			TeleNews.db.Where("chat_id = ?", update.Message.Chat.ID).Delete(&models.User{})
 			if err != nil {
 				TeleNews.logger.Println("[ERR][DB] Ошибка удаления пользователя: ", err)
 			}
