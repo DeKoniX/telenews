@@ -10,7 +10,7 @@ import (
 
 var (
 	db               *gorm.DB
-	errAlreadyExists = errors.New("Item already exists")
+	ErrAlreadyExists = errors.New("Item already exists")
 )
 
 func Init(address, username, password, dbname string) (err error) {
@@ -21,7 +21,7 @@ func Init(address, username, password, dbname string) (err error) {
 	if err != nil {
 		return err
 	}
-	db.LogMode(true) //LOGMODE
+	db.LogMode(false) //LOGMODE
 
 	db.AutoMigrate(&User{}, &Source{}, &Item{})
 

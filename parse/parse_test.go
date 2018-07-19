@@ -32,7 +32,7 @@ func TestRSS(t *testing.T) {
 
 	var parseNews ParseNewsStruct
 
-	rssNews, err := parseNews.parseRSS(parseURL)
+	rssNews, err := parseNews.ParseRSS(parseURL)
 	if err != nil {
 		t.Error("[ERR] Error parse RSS: ", err)
 	}
@@ -47,7 +47,7 @@ func TestVkWall(t *testing.T) {
 	var parseNews ParseNewsStruct
 	parseNews.vk.secureKey = os.Getenv("VkSecureKey")
 
-	vkWallNews, err := parseNews.parseVKWall(query)
+	vkWallNews, err := parseNews.ParseVKWall(query)
 	if err != nil {
 		t.Error("[ERR] Error parse VkWall: ", err)
 	}

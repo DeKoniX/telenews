@@ -26,12 +26,17 @@ func (source *Source) Insert(user User) (_ int, _ error) {
 	return a.Count(), nil
 }
 
-func (source Source) Select(user User) (sources []Source, _ error) {
+func (source Source) SelectByUser(user User) (sources []Source, err error) {
 	a := db.Model(&user).Association("Sources")
-	if err := a.Find(&sources).Error; err != nil {
+	if err = a.Find(&sources).Error; err != nil {
 		return sources, err
 	}
 	return sources, nil
+}
+
+func (source Source) SelectAll() (sources []Source, err error) {
+	err = db.Find(&sources).Error
+	return sources, err
 }
 
 func (source Source) SelectByType(user User, sourceType SourceType) (sources []Source, err error) {

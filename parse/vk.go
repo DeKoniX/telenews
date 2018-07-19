@@ -8,7 +8,11 @@ import (
 	"net/url"
 )
 
-func (ParseNews ParseNewsStruct) parseVKWall(query string) (vkWallNews []newsStruct, err error) {
+func (parseNews *ParseNewsStruct) InitVK(secureKey string) {
+	parseNews.vk.secureKey = secureKey
+}
+
+func (ParseNews ParseNewsStruct) ParseVKWall(query string) (vkWallNews []NewsStruct, err error) {
 	type vkJSON struct {
 		Response struct {
 			Items []struct {
@@ -50,7 +54,7 @@ func (ParseNews ParseNewsStruct) parseVKWall(query string) (vkWallNews []newsStr
 
 	for _, news := range vkjson.Response.Items {
 		link := fmt.Sprintf("https://vk.com/%s?w=wall%v_%v", query, news.OwnerID, news.Id)
-		vkWallNews = append(vkWallNews, newsStruct{
+		vkWallNews = append(vkWallNews, NewsStruct{
 			Title: query,
 			MSG:   news.Text,
 			Link:  link,

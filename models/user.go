@@ -32,6 +32,11 @@ func (user *User) SelectByChatId(chatID int64) error {
 	return err
 }
 
+func (user *User) SelectById(id uint) error {
+	err := db.First(&user, id).Error
+	return err
+}
+
 func (user *User) Delete() error {
 	if err := db.Delete(user).Error; err != nil {
 		return err

@@ -29,7 +29,7 @@ func TestSource(t *testing.T) {
 		t.Error("[ERR] Append Source user 2: ", user2, err, appSource2)
 	}
 
-	sources, err := Source{}.Select(user)
+	sources, err := Source{}.SelectByUser(user)
 	if err != nil {
 		t.Error("[ERR] Get Sources user: ", user, err, sources)
 	}
@@ -46,6 +46,11 @@ func TestSource(t *testing.T) {
 	err = testSource.SelectByQueryAndType(user2, appSource2.Query, appSource2.Type)
 	if testSource.Query != appSource2.Query && testSource.Type != appSource2.Type && err != nil {
 		t.Error("[ERR] Do not match sources by url and type: ", user2, err, testSource, appSource2)
+	}
+
+	allSources, err := Source{}.SelectAll()
+	if err != nil && len(allSources) == 2 {
+		t.Error("[ERR] Get all Sources: ", err)
 	}
 
 	err = appSource1.Delete()

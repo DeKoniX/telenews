@@ -36,13 +36,13 @@ func TestItem(t *testing.T) {
 	}
 
 	appExistItem, err := appendItem(appSource1, "Title 1", "Text 1")
-	if err != errAlreadyExists {
+	if err != ErrAlreadyExists {
 		t.Error("[ERR] Append exist Item: ", appSource1, appExistItem, err)
 	}
 
 	appItems, count, err := Item{}.Select(appSource1)
 	if err != nil {
-		t.Error("[ERR] Select Items: ", appItems, count, err)
+		t.Error("[ERR] SelectByUser Items: ", appItems, count, err)
 	}
 	if count != 1 {
 		t.Error("[WAR] not the right amount Item: ", appItems, count)

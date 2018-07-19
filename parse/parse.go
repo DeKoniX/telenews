@@ -19,7 +19,7 @@ type ParseNewsStruct struct {
 	httpClient *http.Client
 }
 
-type newsStruct struct {
+type NewsStruct struct {
 	Title string
 	MSG   string
 	Link  string

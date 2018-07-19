@@ -27,7 +27,7 @@ func (item *Item) Insert(source Source) (_ int, _ error) {
 	itemTest := Item{}
 	itemTest.SelectByHash(item.Hash)
 	if itemTest.Hash == item.Hash {
-		return a.Count(), errAlreadyExists
+		return a.Count(), ErrAlreadyExists
 	} else {
 		if err := a.Append(item).Error; err != nil {
 			return 0, err

@@ -1,191 +1,97 @@
 package main
 
 import (
-	"fmt"
 	"log"
+
 	"os"
-	"project/dknote/models"
 	"time"
 
+	"fmt"
+
+	"github.com/DeKoniX/telenews/models"
+	"github.com/DeKoniX/telenews/parse"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
-	"github.com/jinzhu/gorm"
 )
 
 const version = "2.0.0"
 
 type teleNewsStruct struct {
 	bot    *tgbotapi.BotAPI
-	db     *gorm.DB
 	logger *log.Logger
 	config *configStruct
+	parser parse.ParseNewsStruct
 }
 
 func main() {
-	var TeleNews teleNewsStruct
-	var err error
+	var teleNews teleNewsStruct
 
+	// Create logger
 	logFile, err := os.Create("telenews.log")
 	if err != nil {
-		fmt.Println("[ERR][LOG] Ошибка создания/чтения лог файла: ", err)
-		os.Exit(0)
+		fmt.Println("[ERR][LOG] Error logging file: ", err)
+		os.Exit(1)
 	}
 	defer logFile.Close()
-	TeleNews.logger = log.New(logFile, "TeleNews: ", log.LstdFlags)
+	teleNews.logger = log.New(logFile, "TeleNews: ", log.LstdFlags)
 
-	TeleNews.config, err = getConfig("telenews.yml")
+	// Get config
+	teleNews.config, err = getConfig("telenews.yml")
 	if err != nil {
-		TeleNews.logger.Println("[ERR][CFG] Ошибка чтения конфигурации: ", err)
-		os.Exit(0)
+		teleNews.logger.Println("[ERR][CFG] Error read config file: ", err)
+		os.Exit(1)
 	}
-	TeleNews.logger.Printf("%+v\n", TeleNews.config)
 
-	TeleNews.db, err = models.Init(
-		TeleNews.config.DB.Host,
-		TeleNews.config.DB.Port,
-		TeleNews.config.DB.UserName,
-		TeleNews.config.DB.Password,
-		TeleNews.config.DB.DBName,
+	// DB Initial
+	err = models.Init(
+		teleNews.config.DB.Address,
+		teleNews.config.DB.UserName,
+		teleNews.config.DB.Password,
+		teleNews.config.DB.DBName,
 	)
 	if err != nil {
-		TeleNews.logger.Println("[ERR][DB] Ошибка чтения БД: ", err)
-		os.Exit(0)
+		teleNews.logger.Println("[ERR][DB] Error connect DB: ", err)
+		os.Exit(1)
 	}
-	defer TeleNews.db.Close()
 
-	TeleNews.bot, err = tgbotapi.NewBotAPI(TeleNews.config.Telegram.Token)
+	// Parse Initial
+	teleNews.parser.InitTwitter(
+		teleNews.config.Twitter.ConsumerKey,
+		teleNews.config.Twitter.ConsumerSecret,
+		teleNews.config.Twitter.Token,
+		teleNews.config.Twitter.TokenSecret,
+	)
+	teleNews.parser.InitVK(teleNews.config.Vk.SecureKey)
+
+	err = teleNews.telegramInit(teleNews.config.Telegram.Token)
 	if err != nil {
-		TeleNews.logger.Println("[ERR][Telegram] Ошибка подключения к боту: ", err)
-		os.Exit(0)
+		teleNews.logger.Println("[ERR][Telegram] Initial telegram error: ", err)
 	}
+	teleNews.bot.Debug = false
 
-	TeleNews.bot.Debug = true
-
-	fmt.Println("Начал работу!")
-
-	go TeleNews.tgUpdate()
+	go teleNews.telegramUpdate()
+	go teleNews.workNews()
 	for {
 		time.Sleep(time.Second * 30)
 	}
-	//TeleNews.workNews()
 }
 
-func (TeleNews *teleNewsStruct) tgUpdate() {
-	var updateCfg tgbotapi.UpdateConfig
-	var updates tgbotapi.UpdatesChannel
-	var err error
+func (teleNews *teleNewsStruct) workNews() {
+	var timeNow time.Time
+	isWork := false
 
-	updateCfg = tgbotapi.NewUpdate(0)
-	updateCfg.Timeout = 60
-
-	updates, err = TeleNews.bot.GetUpdatesChan(updateCfg)
-	if err != nil {
-		TeleNews.logger.Println("[ERR][Telegram] Ошибка обновления TG бота: ", err)
-		os.Exit(0)
-	}
-
-	for update := range updates {
-		if update.Message.Text == "/start" {
-			var user models.User
-			user.UserName = update.Message.From.UserName
-			user.ChatID = update.Message.Chat.ID
-			TeleNews.db.Create(&user)
-			if err != nil {
-				TeleNews.logger.Println("[ERR][DB] Ошибка добавления пользователя: ", err)
+	go teleNews.parseNews()
+	time.Sleep(time.Minute * 1)
+	for {
+		timeNow = time.Now()
+		if timeNow.Minute()%5 == 0 {
+			if isWork == false {
+				go teleNews.parseNews()
+				isWork = true
+				time.Sleep(time.Minute * 1)
 			}
-
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Пользователь "+update.Message.From.UserName+" добавлен")
-			_, err = TeleNews.bot.Send(msg)
-			if err != nil {
-				TeleNews.logger.Println("[ERR][Telegram] Ошибка отправления сообщения пользователю ", update.Message.From.UserName, " чат ID ", update.Message.Chat.ID, ": ", err)
-			}
+		} else {
+			isWork = false
 		}
-
-		if update.Message.Text == "/stop" {
-			TeleNews.db.Where("chat_id = ?", update.Message.Chat.ID).Delete(&models.User{})
-			if err != nil {
-				TeleNews.logger.Println("[ERR][DB] Ошибка удаления пользователя: ", err)
-			}
-		}
-
-		if update.Message.Text == "/help" {
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Бот отправляет последние новости на русском языке\n/start - Запускает пост новостей\n/stop - Останавливает бота\n/help - Этот текст\n/version - Текущая версия бота\n")
-			msg.ParseMode = "markdown"
-			TeleNews.bot.Send(msg)
-		}
-
-		if update.Message.Text == "/version" {
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Версия "+version+". Разработчик: DeKoniX (admin@dekonix.ru)")
-			TeleNews.bot.Send(msg)
-		}
-
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 30)
 	}
 }
-
-//func (TeleNews *TeleNewsStruct) workNews() {
-//	var timeNow time.Time
-//	isWork := false
-//
-//	TeleNews.parseRSS()
-//	TeleNews.parseTwitter()
-//	TeleNews.parseVK()
-//	time.Sleep(time.Minute * 1)
-//	for {
-//		timeNow = time.Now()
-//		if timeNow.Minute()%5 == 0 {
-//			if isWork == false {
-//				TeleNews.parseRSS()
-//				TeleNews.parseTwitter()
-//				TeleNews.parseVK()
-//				isWork = true
-//				time.Sleep(time.Minute * 1)
-//			}
-//		} else {
-//			isWork = false
-//		}
-//		time.Sleep(time.Second * 30)
-//	}
-//}
-//
-//func (TeleNews *TeleNewsStruct) testFeed(id, title string, date time.Time) bool {
-//	var hash string
-//
-//	if id == "" {
-//		hash = GenHash("", title, date)
-//	} else {
-//		hash = GenHash(id, "", time.Now())
-//	}
-//	rows, err := TeleNews.dataBase.SelectInfo(hash)
-//	if err != nil {
-//		return false
-//	}
-//
-//	if len(rows) == 0 {
-//		timeNow := time.Now()
-//		timeD := timeNow.Add(-(time.Hour * 24 * 3))
-//		if timeD.After(date) {
-//			return false
-//		}
-//
-//		return true
-//	}
-//
-//	return false
-//}
-//
-//func (TeleNews *TeleNewsStruct) sendMSG(ch string, title string, link string) error {
-//	// database, bot, logger
-//	users, err := TeleNews.dataBase.SelectUsers()
-//	if err != nil {
-//		return err
-//	}
-//
-//	for _, user := range users {
-//		msg := tgbotapi.NewMessage(user.ChatID, "*"+ch+"*\n"+title+"\n["+link+"]("+link+")")
-//		msg.ParseMode = "markdown"
-//		TeleNews.bot.Send(msg)
-//		TeleNews.logger.Println("MSG: " + user.Username + " -> " + "*" + ch + "*\n" + title + "\n" + link)
-//	}
-//
-//	return nil
-//}
