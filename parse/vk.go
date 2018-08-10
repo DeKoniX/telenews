@@ -16,11 +16,17 @@ func (ParseNews ParseNewsStruct) ParseVKWall(query string) (vkWallNews []NewsStr
 	type vkJSON struct {
 		Response struct {
 			Items []struct {
-				Id      int    `json:"id"`
-				FromID  int    `json:"from_id"`
-				OwnerID int    `json:"owner_id"`
-				Date    int64  `json:"date"`
-				Text    string `json:"text"`
+				Id          int    `json:"id"`
+				FromID      int    `json:"from_id"`
+				OwnerID     int    `json:"owner_id"`
+				Date        int64  `json:"date"`
+				Text        string `json:"text"`
+				Attachments []struct {
+					TypeAttach string `json:"type"`
+					Photo      struct {
+						Photo1280 string `json:"photo_1280"`
+					}
+				}
 			}
 		}
 	}
@@ -59,6 +65,18 @@ func (ParseNews ParseNewsStruct) ParseVKWall(query string) (vkWallNews []NewsStr
 			MSG:   news.Text,
 			Link:  link,
 		})
+		for id, attach := range news.Attachments {
+			if id != 0 {
+				if attach.TypeAttach == "photo" {
+					if attach.Photo.Photo1280 != "" {
+						vkWallNews = append(vkWallNews, NewsStruct{
+							Title: attach.Photo.Photo1280,
+							Link:  attach.Photo.Photo1280,
+						})
+					}
+				}
+			}
+		}
 	}
 	return vkWallNews, nil
 }

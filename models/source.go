@@ -50,6 +50,18 @@ func (source *Source) SelectByQueryAndType(user User, query string, sourceType S
 }
 
 func (source Source) Delete() error {
+	var items []Item
+
+	a := db.Model(&source).Association("Items")
+	if err := a.Find(&items).Error; err != nil {
+		return err
+	}
+	for _, item := range items {
+		if err := item.Delete(); err != nil {
+			return err
+		}
+	}
+
 	if err := db.Delete(source).Error; err != nil {
 		return err
 	}

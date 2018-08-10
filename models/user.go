@@ -38,6 +38,18 @@ func (user *User) SelectById(id uint) error {
 }
 
 func (user *User) Delete() error {
+	var sources []Source
+
+	a := db.Model(&user).Association("Sources")
+	if err := a.Find(&sources).Error; err != nil {
+		return err
+	}
+	for _, source := range sources {
+		if err := source.Delete(); err != nil {
+			return err
+		}
+	}
+
 	if err := db.Delete(user).Error; err != nil {
 		return err
 	}
