@@ -35,7 +35,7 @@ func (teleNews teleNewsStruct) telegramUpdate() {
 	}
 
 	for update := range updates {
-		if update.Message.Text == "/start" {
+		if update.Message.Command() == "start" {
 			var user models.User
 			user.SelectByChatId(update.Message.Chat.ID)
 			if user.UserName == "" {
@@ -49,7 +49,7 @@ func (teleNews teleNewsStruct) telegramUpdate() {
 					teleNews.telegramSendMessage(update.Message.Chat.ID, "Добро пожаловать "+update.Message.From.UserName, false)
 				}
 			}
-		} else if update.Message.Text == "/stop" {
+		} else if update.Message.Command() == "stop" {
 			var user models.User
 			user.SelectByChatId(update.Message.Chat.ID)
 			if user.UserName != "" {
@@ -58,20 +58,24 @@ func (teleNews teleNewsStruct) telegramUpdate() {
 					teleNews.logger.Println("[ERR][DB] Error delete user: ", err)
 				}
 			}
-		} else if update.Message.Text == "/source" {
+		} else if update.Message.Command() == "source" {
 			teleNews.telegramSendMessage(update.Message.Chat.ID, "Доступный список источников с которыми может работать бот: "+telegramListSource, false)
-		} else if len(update.Message.Text) >= 4 && update.Message.Text[0:4] == "/add" {
-			var user models.User
-			err = user.SelectByChatId(update.Message.Chat.ID)
-			if user.UserName != "" {
-				sou, query, err := addSource(update.Message.Chat.ID, update.Message.Text)
-				if err != nil {
-					teleNews.telegramSendMessage(update.Message.Chat.ID, "Не смог добавить источник, поправте команду или обратитесь к администратору", false)
-				} else {
-					teleNews.telegramSendMessage(update.Message.Chat.ID, "Добавлен источник: "+sou+" - "+query, false)
+		} else if update.Message.Command() == "add" {
+			if update.Message.CommandArguments() == "" {
+				teleNews.telegramSendMessage(update.Message.Chat.ID, "Для добавления источника, ипользуйте синтаксис команды:\n <code>/add source url</code> \n Например: <code>/add vk_wall golang</code>\n/source - покажет список доступных для использования источников", true)
+			} else {
+				var user models.User
+				err = user.SelectByChatId(update.Message.Chat.ID)
+				if user.UserName != "" {
+					sou, query, err := addSource(update.Message.Chat.ID, update.Message.CommandArguments())
+					if err != nil {
+						teleNews.telegramSendMessage(update.Message.Chat.ID, "Не смог добавить источник, поправте команду или обратитесь к администратору", false)
+					} else {
+						teleNews.telegramSendMessage(update.Message.Chat.ID, "Добавлен источник: "+sou+" - "+query, false)
+					}
 				}
 			}
-		} else if update.Message.Text == "/list" {
+		} else if update.Message.Command() == "list" {
 			var user models.User
 			user.SelectByChatId(update.Message.Chat.ID)
 			if user.UserName != "" {
@@ -82,23 +86,21 @@ func (teleNews teleNewsStruct) telegramUpdate() {
 					teleNews.telegramSendMessage(update.Message.Chat.ID, "Добавленные вами источники:\n"+message, false)
 				}
 			}
-		} else if len(update.Message.Text) >= 4 && update.Message.Text[0:4] == "/del" {
+		} else if update.Message.Command() == "del" {
 			var user models.User
 			user.SelectByChatId(update.Message.Chat.ID)
 			if user.UserName != "" {
-				sou, query, err := deleteSource(update.Message.Chat.ID, update.Message.Text)
+				sou, query, err := deleteSource(update.Message.Chat.ID, update.Message.CommandArguments())
 				if err != nil {
 					teleNews.telegramSendMessage(update.Message.Chat.ID, "Не смог удалить источник, поправте команду или обратитесь к администратору", false)
 				} else {
 					teleNews.telegramSendMessage(update.Message.Chat.ID, "Удален источник: "+sou+" - "+query, false)
 				}
 			}
-		} else if update.Message.Text == "/help" {
+		} else if update.Message.Command() == "help" {
 			teleNews.telegramSendMessage(update.Message.Chat.ID, telegramHelpMessage, true)
-		} else if update.Message.Text == "/version" {
+		} else if update.Message.Command() == "version" {
 			teleNews.telegramSendMessage(update.Message.Chat.ID, "Версия "+version+". Разработчик: DeKoniX (admin@dekonix.ru)", false)
-		} else if update.Message.Text == "/hi" {
-			teleNews.telegramSendMessage(update.Message.Chat.ID, "Hi "+update.Message.From.UserName+"!", false)
 		}
 
 		time.Sleep(time.Second)

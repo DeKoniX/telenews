@@ -54,10 +54,10 @@ func addSource(chatID int64, message string) (sou, query string, _ error) {
 
 	user.SelectByChatId(chatID)
 	messageSplit := strings.Split(message, " ")
-	if len(messageSplit) < 3 {
+	if len(messageSplit) < 2 {
 		return sou, query, errors.New("Wrong message :" + message)
 	}
-	switch messageSplit[1] {
+	switch messageSplit[0] {
 	case "twitter":
 		source.Type = models.Twitter
 	case "vk_wall":
@@ -68,10 +68,10 @@ func addSource(chatID int64, message string) (sou, query string, _ error) {
 		return sou, query, errors.New("No source type")
 	}
 
-	source.Query = messageSplit[2]
+	source.Query = messageSplit[1]
 	_, err := source.Insert(user)
 
-	return messageSplit[1], source.Query, err
+	return messageSplit[0], source.Query, err
 }
 
 func listSource(chatID int64) (msg string, err error) {
@@ -83,8 +83,12 @@ func listSource(chatID int64) (msg string, err error) {
 		return msg, err
 	}
 
-	for _, source := range sources {
-		msg += fmt.Sprintf("- %s -- %s\n", source.Type, source.Query)
+	if len(sources) == 0 {
+		msg = "На данный момент источников у вас нет, добавте источники с помощью команды /add"
+	} else {
+		for _, source := range sources {
+			msg += fmt.Sprintf("- %s -- %s\n", source.Type, source.Query)
+		}
 	}
 
 	return msg, nil
@@ -99,7 +103,7 @@ func deleteSource(chatID int64, message string) (sou, query string, err error) {
 	if len(messageSplit) < 2 {
 		return sou, query, errors.New("Wrong message :" + message)
 	}
-	switch messageSplit[1] {
+	switch messageSplit[0] {
 	case "twitter":
 		source.Type = models.Twitter
 	case "vk_wall":
@@ -110,13 +114,13 @@ func deleteSource(chatID int64, message string) (sou, query string, err error) {
 		return sou, query, errors.New("No source type")
 	}
 
-	err = source.SelectByQueryAndType(user, messageSplit[2], source.Type)
+	err = source.SelectByQueryAndType(user, messageSplit[1], source.Type)
 	if err != nil {
 		return sou, query, err
 	}
 	err = source.Delete()
 
-	return messageSplit[1], source.Query, nil
+	return messageSplit[0], source.Query, nil
 }
 
 func (teleNews *teleNewsStruct) parseNews() {
