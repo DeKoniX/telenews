@@ -130,6 +130,14 @@ func (teleNews *teleNewsStruct) parseNews() {
 		teleNews.logger.Println("[ERR][DB] Error select all")
 	}
 	for _, source := range sources {
+		firstRun := false
+		var item models.Item
+
+		_, n, err := item.Select(source)
+		if n == 0 {
+			firstRun = true
+		}
+
 		switch source.Type {
 		case models.RSS:
 			parseNews, err = teleNews.parser.ParseRSS(source.Query)
@@ -170,6 +178,9 @@ func (teleNews *teleNewsStruct) parseNews() {
 						true,
 					)
 				}
+			}
+			if firstRun {
+				break
 			}
 		}
 	}
