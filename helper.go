@@ -170,17 +170,16 @@ func (teleNews *teleNewsStruct) parseNews() {
 					if err != nil {
 						teleNews.logger.Println("[ERR][DB] Select User: ", err)
 					}
-					teleNews.telegramSendMessage(
-						user.ChatID,
-						"<b>"+item.Title+"</b>\n"+
-							item.Text+"\n"+
-							"<a href=\""+item.Link+"\">"+item.Title+"</a>",
-						true,
-					)
+					if !firstRun {
+						teleNews.telegramSendMessage(
+							user.ChatID,
+							"<b>"+item.Title+"</b>\n"+
+								item.Text+"\n"+
+								"<a href=\""+item.Link+"\">"+item.Title+"</a>",
+							true,
+						)
+					}
 				}
-			}
-			if firstRun {
-				break
 			}
 		}
 	}
