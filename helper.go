@@ -22,6 +22,7 @@ type configStruct struct {
 	}
 	Telegram struct {
 		Token string `yaml:"token"`
+		Debug bool   `yaml:"debug"`
 	}
 	Twitter struct {
 		ConsumerKey    string `yaml:"consumerKey"`
@@ -124,6 +125,7 @@ func deleteSource(chatID int64, message string) (sou, query string, err error) {
 }
 
 func (teleNews *teleNewsStruct) parseNews() {
+	// TODO: сделать обработку нового источника, отправка последней новости, и/или сообщение о нормальном работе источника
 	var parseNews []parse.NewsStruct
 	sources, err := models.Source{}.SelectAll()
 	if err != nil {
@@ -156,6 +158,9 @@ func (teleNews *teleNewsStruct) parseNews() {
 			}
 		}
 		for _, news := range parseNews {
+			if teleNews.config.Telegram.Debug {
+				teleNews.logger.Println("[DEBUG] News: ", news)
+			}
 			var item models.Item
 			item.Title = news.Title
 			item.Text = news.MSG

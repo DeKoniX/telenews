@@ -26,13 +26,12 @@ func (teleNews *teleNewsStruct) telegramInit(token string) (err error) {
 }
 
 func (teleNews teleNewsStruct) telegramUpdate() {
+	var err error
+
 	updateCfg := tgbotapi.NewUpdate(0)
 	updateCfg.Timeout = 60
 
-	updates, err := teleNews.bot.GetUpdatesChan(updateCfg)
-	if err != nil {
-		teleNews.logger.Println("[ERR] Error update Telegram bot: ", err)
-	}
+	updates := teleNews.bot.GetUpdatesChan(updateCfg)
 
 	for update := range updates {
 		if update.Message.Command() == "start" {

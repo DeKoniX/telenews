@@ -65,8 +65,12 @@ func main() {
 	err = teleNews.telegramInit(teleNews.config.Telegram.Token)
 	if err != nil {
 		teleNews.logger.Println("[ERR][Telegram] Initial telegram error: ", err)
+		os.Exit(1)
 	}
-	teleNews.bot.Debug = false
+
+	if teleNews.config.Telegram.Debug {
+		teleNews.bot.Debug = true
+	}
 
 	go teleNews.telegramUpdate()
 	go teleNews.workNews()
@@ -83,7 +87,7 @@ func (teleNews *teleNewsStruct) workNews() {
 	time.Sleep(time.Minute * 1)
 	for {
 		timeNow = time.Now()
-		if timeNow.Minute()%5 == 0 {
+		if timeNow.Minute()%2 == 0 {
 			if isWork == false {
 				go teleNews.parseNews()
 				isWork = true

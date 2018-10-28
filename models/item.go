@@ -22,7 +22,7 @@ type Item struct {
 func (item *Item) Insert(source Source) (_ int, _ error) {
 	a := db.Model(&source).Association("Items")
 
-	item.Hash = genHash(source.ID, item.Title, item.Text)
+	item.Hash = genHash(source.ID, item.Title, item.Text, item.Link)
 
 	itemTest := Item{}
 	itemTest.SelectByHash(item.Hash)
@@ -59,11 +59,12 @@ func (item Item) Delete() error {
 	return nil
 }
 
-func genHash(sourceID uint, title, text string) (hash string) {
+func genHash(sourceID uint, title, text, link string) (hash string) {
 	h := md5.New()
 	io.WriteString(h, strconv.Itoa(int(sourceID)))
 	io.WriteString(h, title)
 	io.WriteString(h, text)
+	io.WriteString(h, link)
 	hash = fmt.Sprintf("%x", h.Sum(nil))
 
 	return hash
