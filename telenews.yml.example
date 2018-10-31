@@ -1,3 +1,6 @@
+general:
+  log_dir: ./
+  debug: false
 telegram:
   token:
 twitter:

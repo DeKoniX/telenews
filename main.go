@@ -13,7 +13,7 @@ import (
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-const version = "2.0.3"
+const version = "2.0.5"
 
 type teleNewsStruct struct {
 	bot    *tgbotapi.BotAPI
@@ -24,15 +24,7 @@ type teleNewsStruct struct {
 
 func main() {
 	var teleNews teleNewsStruct
-
-	// Create logger
-	logFile, err := os.Create("telenews.log")
-	if err != nil {
-		fmt.Println("[ERR][LOG] Error logging file: ", err)
-		os.Exit(1)
-	}
-	defer logFile.Close()
-	teleNews.logger = log.New(logFile, "TeleNews: ", log.LstdFlags)
+	var err error
 
 	// Get config
 	teleNews.config, err = getConfig("telenews.yml")
@@ -40,6 +32,16 @@ func main() {
 		teleNews.logger.Println("[ERR][CFG] Error read config file: ", err)
 		os.Exit(1)
 	}
+
+	// Create logger
+	logFile, err := os.Create(teleNews.config.General.LogDir + "telenews.log")
+	if err != nil {
+		fmt.Println("[ERR][LOG] Error logging file: ", err)
+		os.Exit(1)
+	}
+	defer logFile.Close()
+
+	teleNews.logger = log.New(logFile, "TeleNews: ", log.LstdFlags)
 
 	// DB Initial
 	err = models.Init(
@@ -68,7 +70,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if teleNews.config.Telegram.Debug {
+	if teleNews.config.General.Debug {
 		teleNews.bot.Debug = true
 	}
 
@@ -91,11 +93,11 @@ func (teleNews *teleNewsStruct) workNews() {
 			if isWork == false {
 				go teleNews.parseNews()
 				isWork = true
-				time.Sleep(time.Minute * 1)
+				time.Sleep(time.Second * 30)
 			}
 		} else {
 			isWork = false
 		}
-		time.Sleep(time.Second * 30)
+		time.Sleep(time.Second * 20)
 	}
 }

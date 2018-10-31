@@ -14,6 +14,10 @@ import (
 )
 
 type configStruct struct {
+	General struct {
+		LogDir string `yaml:"log_dir"`
+		Debug  bool   `yaml:"debug"`
+	}
 	DB struct {
 		Address  string `yaml:"address"`
 		UserName string `yaml:"username"`
@@ -22,7 +26,6 @@ type configStruct struct {
 	}
 	Telegram struct {
 		Token string `yaml:"token"`
-		Debug bool   `yaml:"debug"`
 	}
 	Twitter struct {
 		ConsumerKey    string `yaml:"consumerKey"`
@@ -158,7 +161,7 @@ func (teleNews *teleNewsStruct) parseNews() {
 			}
 		}
 		for _, news := range parseNews {
-			if teleNews.config.Telegram.Debug {
+			if teleNews.config.General.Debug {
 				teleNews.logger.Println("[DEBUG] News: ", news)
 			}
 			var item models.Item
