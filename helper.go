@@ -1,12 +1,10 @@
 package main
 
 import (
-	"io/ioutil"
-
 	"errors"
-	"strings"
-
 	"fmt"
+	"io/ioutil"
+	"strings"
 
 	"github.com/DeKoniX/telenews/models"
 	"github.com/DeKoniX/telenews/parse"
@@ -161,9 +159,6 @@ func (teleNews *teleNewsStruct) parseNews() {
 			}
 		}
 		for _, news := range parseNews {
-			if teleNews.config.General.Debug {
-				teleNews.logger.Println("[DEBUG] News: ", news)
-			}
 			var item models.Item
 			item.Title = news.Title
 			item.Text = news.MSG
@@ -173,11 +168,17 @@ func (teleNews *teleNewsStruct) parseNews() {
 				teleNews.logger.Println("[ERR][DB] Error insert item: ", err)
 			} else {
 				if err != models.ErrAlreadyExists {
+					// Logging news
+					if teleNews.config.General.Debug {
+						teleNews.logger.Println("[DEBUG] News: ", news)
+					}
+
 					var user models.User
 					err = user.SelectById(source.UserID)
 					if err != nil {
 						teleNews.logger.Println("[ERR][DB] Select User: ", err)
 					}
+
 					if !firstRun {
 						teleNews.telegramSendMessage(
 							user.ChatID,
