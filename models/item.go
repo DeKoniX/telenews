@@ -1,12 +1,6 @@
 package models
 
 import (
-	"crypto/md5"
-	"fmt"
-	"io"
-
-	"strconv"
-
 	"github.com/jinzhu/gorm"
 )
 
@@ -21,8 +15,6 @@ type Item struct {
 
 func (item *Item) Insert(source Source) (_ int, _ error) {
 	a := db.Model(&source).Association("Items")
-
-	item.Hash = genHash(source.ID, item.Title, item.Text, item.Link)
 
 	itemTest := Item{}
 	itemTest.SelectByHash(item.Hash)
@@ -57,15 +49,4 @@ func (item Item) Delete() error {
 		return err
 	}
 	return nil
-}
-
-func genHash(sourceID uint, title, text, link string) (hash string) {
-	h := md5.New()
-	io.WriteString(h, strconv.Itoa(int(sourceID)))
-	io.WriteString(h, title)
-	io.WriteString(h, text)
-	io.WriteString(h, link)
-	hash = fmt.Sprintf("%x", h.Sum(nil))
-
-	return hash
 }

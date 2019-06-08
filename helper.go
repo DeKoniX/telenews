@@ -141,6 +141,7 @@ func (teleNews *teleNewsStruct) parseNews() {
 			firstRun = true
 		}
 
+		teleNews.parser.SourceID = source.ID
 		switch source.Type {
 		case models.RSS:
 			parseNews, err = teleNews.parser.ParseRSS(source.Query)
@@ -159,36 +160,57 @@ func (teleNews *teleNewsStruct) parseNews() {
 			}
 		}
 		for _, news := range parseNews {
-			var item models.Item
+			var (
+				item     models.Item
+				itemTest models.Item
+			)
+
 			item.Title = news.Title
 			item.Text = news.MSG
 			item.Link = news.Link
+			if news.Hash == "" {
+				news.GenHash(source.ID)
+			}
+			item.Hash = news.Hash
+
+			err = itemTest.SelectByHash(item.Hash)
+			if err == models.ErrRecordNotFound {
+				// Logging news
+				if teleNews.config.General.Debug {
+					teleNews.logger.Println("[DEBUG] News: ", news)
+				}
+
+				var user models.User
+				err = user.SelectById(source.UserID)
+				if err != nil {
+					teleNews.logger.Println("[ERR][DB] Select User: ", err)
+				}
+
+				if !firstRun {
+					teleNews.telegramSendMessage(
+						user.ChatID,
+						"<b>"+item.Title+"</b>\n"+
+							item.Text+"\n"+
+							"<a href=\""+item.Link+"\">"+item.Title+"</a>",
+						true,
+					)
+				}
+			}
+		}
+		for _, news := range parseNews {
+			var item models.Item
+
+			item.Title = news.Title
+			item.Text = news.MSG
+			item.Link = news.Link
+			if news.Hash == "" {
+				news.GenHash(source.ID)
+			}
+			item.Hash = news.Hash
+
 			_, err = item.Insert(source)
 			if err != nil && err != models.ErrAlreadyExists {
 				teleNews.logger.Println("[ERR][DB] Error insert item: ", err)
-			} else {
-				if err != models.ErrAlreadyExists {
-					// Logging news
-					if teleNews.config.General.Debug {
-						teleNews.logger.Println("[DEBUG] News: ", news)
-					}
-
-					var user models.User
-					err = user.SelectById(source.UserID)
-					if err != nil {
-						teleNews.logger.Println("[ERR][DB] Select User: ", err)
-					}
-
-					if !firstRun {
-						teleNews.telegramSendMessage(
-							user.ChatID,
-							"<b>"+item.Title+"</b>\n"+
-								item.Text+"\n"+
-								"<a href=\""+item.Link+"\">"+item.Title+"</a>",
-							true,
-						)
-					}
-				}
 			}
 		}
 	}

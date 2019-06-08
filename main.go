@@ -13,7 +13,7 @@ import (
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-const version = "2.0.5"
+const version = "2.1.0"
 
 type teleNewsStruct struct {
 	bot    *tgbotapi.BotAPI

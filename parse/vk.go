@@ -60,11 +60,13 @@ func (ParseNews ParseNewsStruct) ParseVKWall(query string) (vkWallNews []NewsStr
 
 	for _, news := range vkjson.Response.Items {
 		link := fmt.Sprintf("https://vk.com/%s?w=wall%v_%v", query, news.OwnerID, news.Id)
-		vkWallNews = append(vkWallNews, NewsStruct{
+		newsStruct := NewsStruct{
 			Title: query,
 			MSG:   news.Text,
 			Link:  link,
-		})
+		}
+		itemHash := newsStruct.GenHash(ParseNews.SourceID)
+		vkWallNews = append(vkWallNews, newsStruct)
 		for id, attach := range news.Attachments {
 			if id != 0 {
 				if attach.TypeAttach == "photo" {
@@ -72,6 +74,7 @@ func (ParseNews ParseNewsStruct) ParseVKWall(query string) (vkWallNews []NewsStr
 						vkWallNews = append(vkWallNews, NewsStruct{
 							Title: attach.Photo.Photo1280,
 							Link:  attach.Photo.Photo1280,
+							Hash:  itemHash,
 						})
 					}
 				}
