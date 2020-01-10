@@ -146,17 +146,17 @@ func (teleNews *teleNewsStruct) parseNews() {
 		case models.RSS:
 			parseNews, err = teleNews.parser.ParseRSS(source.Query)
 			if err != nil {
-				teleNews.logger.Println("[ERR][RSS] Error parse RSS: ", err)
+				teleNews.logger.Printf("[ERR][RSS][%s] Error parse RSS: %s\n", source.Query, err)
 			}
 		case models.Twitter:
 			parseNews, err = teleNews.parser.ParseTwitter(source.Query, "ru")
 			if err != nil {
-				teleNews.logger.Println("[ERR][TW] Error parse Twitter: ", err)
+				teleNews.logger.Printf("[ERR][TW][%s] Error parse Twitter: %s\n", source.Query, err)
 			}
 		case models.VKWall:
 			parseNews, err = teleNews.parser.ParseVKWall(source.Query)
 			if err != nil {
-				teleNews.logger.Println("[ERR][VKW] Error parse VKWall: ", err)
+				teleNews.logger.Printf("[ERR][VKW][%s] Error parse VKWall: %s\n", source.Query, err)
 			}
 		}
 		for _, news := range parseNews {

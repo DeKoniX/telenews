@@ -29,6 +29,10 @@ func (ParseNews ParseNewsStruct) ParseVKWall(query string) (vkWallNews []NewsStr
 				}
 			}
 		}
+		Error struct {
+			ErrorCode int    `json:"error_code"`
+			ErrorMsg  string `json:"error_msg"`
+		}
 	}
 
 	var vkjson vkJSON
@@ -56,6 +60,10 @@ func (ParseNews ParseNewsStruct) ParseVKWall(query string) (vkWallNews []NewsStr
 	err = json.Unmarshal(body, &vkjson)
 	if err != nil {
 		return vkWallNews, err
+	}
+
+	if vkjson.Error.ErrorCode != 0 {
+		return vkWallNews, fmt.Errorf("VK error code: %d error message: %s", vkjson.Error.ErrorCode, vkjson.Error.ErrorMsg)
 	}
 
 	for _, news := range vkjson.Response.Items {
