@@ -4,15 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 func (parseNews *ParseNewsStruct) InitVK(secureKey string) {
 	parseNews.vk.secureKey = secureKey
 }
 
-func (ParseNews ParseNewsStruct) ParseVKWall(query string) (vkWallNews []NewsStruct, err error) {
+func (ParseNews ParseNewsStruct) ParseVKWall(query string, retry bool) (vkWallNews []NewsStruct, err error) {
 	type vkJSON struct {
 		Response struct {
 			Items []struct {
@@ -64,6 +66,10 @@ func (ParseNews ParseNewsStruct) ParseVKWall(query string) (vkWallNews []NewsStr
 
 	if vkjson.Error.ErrorCode != 0 {
 		return vkWallNews, fmt.Errorf("VK error code: %d error message: %s", vkjson.Error.ErrorCode, vkjson.Error.ErrorMsg)
+	}
+	if vkjson.Error.ErrorCode == 6 && retry == true {
+		time.Sleep(time.Second * time.Duration(rand.Intn(20)+20))
+		return ParseNews.ParseVKWall(query, true)
 	}
 
 	for _, news := range vkjson.Response.Items {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
-	"time"
 
 	"github.com/DeKoniX/telenews/models"
 	"github.com/DeKoniX/telenews/parse"
@@ -134,7 +133,6 @@ func (teleNews *teleNewsStruct) parseNews() {
 		teleNews.logger.Println("[ERR][DB] Error select all")
 	}
 	for _, source := range sources {
-		time.Sleep(time.Second * 5)
 		firstRun := false
 		var item models.Item
 
@@ -156,7 +154,7 @@ func (teleNews *teleNewsStruct) parseNews() {
 				teleNews.logger.Printf("[ERR][TW][%s] Error parse Twitter: %s\n", source.Query, err)
 			}
 		case models.VKWall:
-			parseNews, err = teleNews.parser.ParseVKWall(source.Query)
+			parseNews, err = teleNews.parser.ParseVKWall(source.Query, false)
 			if err != nil {
 				teleNews.logger.Printf("[ERR][VKW][%s] Error parse VKWall: %s\n", source.Query, err)
 			}

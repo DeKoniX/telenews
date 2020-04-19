@@ -47,7 +47,7 @@ func TestVkWall(t *testing.T) {
 	var parseNews ParseNewsStruct
 	parseNews.vk.secureKey = os.Getenv("VkSecureKey")
 
-	vkWallNews, err := parseNews.ParseVKWall(query)
+	vkWallNews, err := parseNews.ParseVKWall(query, false)
 	if err != nil {
 		t.Error("[ERR] Error parse VkWall: ", err)
 	}
