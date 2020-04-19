@@ -10,10 +10,10 @@ import (
 
 	"github.com/DeKoniX/telenews/models"
 	"github.com/DeKoniX/telenews/parse"
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-const version = "2.1.0"
+const version = "2.1.1"
 
 type teleNewsStruct struct {
 	bot    *tgbotapi.BotAPI
