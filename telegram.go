@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/DeKoniX/telenews/models"
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 const telegramHelpMessage = "" +
@@ -31,7 +31,7 @@ func (teleNews teleNewsStruct) telegramUpdate() {
 	updateCfg := tgbotapi.NewUpdate(0)
 	updateCfg.Timeout = 60
 
-	updates := teleNews.bot.GetUpdatesChan(updateCfg)
+	updates, _ := teleNews.bot.GetUpdatesChan(updateCfg)
 
 	for update := range updates {
 		if update.Message == nil {

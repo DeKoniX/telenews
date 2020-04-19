@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"time"
 
 	"github.com/DeKoniX/telenews/models"
 	"github.com/DeKoniX/telenews/parse"
@@ -133,6 +134,7 @@ func (teleNews *teleNewsStruct) parseNews() {
 		teleNews.logger.Println("[ERR][DB] Error select all")
 	}
 	for _, source := range sources {
+		time.Sleep(time.Second * 5)
 		firstRun := false
 		var item models.Item
 
