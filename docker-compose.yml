@@ -1,0 +1,35 @@
+version: "3"
+
+services:
+  telenews: 
+    tty: true
+    image: golang:alpine
+    volumes:
+      - .:/usr/src/app
+    working_dir: /usr/src/app
+    networks:
+      - db
+    command: go run .
+    depends_on:
+      - db
+  db:
+    tty: true
+    image: postgres:10-alpine
+    volumes:
+      - ./docker/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+      - postgres-telenews:/var/lib/postgresql/data
+    environment:
+      DATABASE_NAME: telenews
+      DATABASE_USER: telenews
+      DATABASE_PASSWORD: 123456
+      POSTGRES_HOST_AUTH_METHOD: trust
+    networks:
+      - db
+    ports:
+      - 5554:5432
+
+networks:
+  db:
+
+volumes:
+  postgres-telenews: {}
