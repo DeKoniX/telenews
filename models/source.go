@@ -1,6 +1,10 @@
 package models
 
-import "github.com/jinzhu/gorm"
+import (
+	"time"
+
+	"github.com/jinzhu/gorm"
+)
 
 type SourceType string
 
@@ -12,10 +16,12 @@ var (
 
 type Source struct {
 	gorm.Model
-	Type   SourceType
-	Query  string
-	Items  []Item
-	UserID uint
+	Type         SourceType
+	Query        string
+	Items        []Item
+	Error        string
+	NextTryAfter time.Time `gorm:"default:NULL"`
+	UserID       uint
 }
 
 func (source *Source) Insert(user User) (_ int, _ error) {
@@ -24,6 +30,13 @@ func (source *Source) Insert(user User) (_ int, _ error) {
 		return 0, err
 	}
 	return a.Count(), nil
+}
+
+func (source Source) Save() (err error) {
+	if err = db.Save(&source).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 func (source Source) SelectByUser(user User) (sources []Source, err error) {
@@ -36,6 +49,11 @@ func (source Source) SelectByUser(user User) (sources []Source, err error) {
 
 func (source Source) SelectAll() (sources []Source, err error) {
 	err = db.Find(&sources).Error
+	return sources, err
+}
+
+func (source Source) SelectTryAll() (sources []Source, err error) {
+	err = db.Where("next_try_after is NULL OR next_try_after < now()").Find(&sources).Error
 	return sources, err
 }
 

@@ -23,7 +23,6 @@ _testmain.go
 *.exe
 *.test
 *.prof
-*.yml
 *.db
 *.sqlite
 .idea/
@@ -31,3 +30,4 @@ _testmain.go
 *.log
 *.env
 vendor/
+telenews.yml

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"time"
 
 	"github.com/DeKoniX/telenews/models"
 	"github.com/DeKoniX/telenews/parse"
@@ -128,13 +129,14 @@ func deleteSource(chatID int64, message string) (sou, query string, err error) {
 func (teleNews *teleNewsStruct) parseNews() {
 	// TODO: сделать обработку нового источника, отправка последней новости, и/или сообщение о нормальном работе источника
 	var parseNews []parse.NewsStruct
-	sources, err := models.Source{}.SelectAll()
+	sources, err := models.Source{}.SelectTryAll()
 	if err != nil {
 		teleNews.logger.Println("[ERR][DB] Error select all")
 	}
 	for _, source := range sources {
 		firstRun := false
 		var item models.Item
+		var now time.Time
 
 		_, n, err := item.Select(source)
 		if n == 0 {
@@ -146,6 +148,10 @@ func (teleNews *teleNewsStruct) parseNews() {
 		case models.RSS:
 			parseNews, err = teleNews.parser.ParseRSS(source.Query)
 			if err != nil {
+				now = time.Now()
+				source.NextTryAfter = now.Add(10 * time.Minute)
+				source.Error = fmt.Sprintf("[ERR][RSS][%s] Error parse RSS: %s\n", source.Query, err)
+				source.Save()
 				teleNews.logger.Printf("[ERR][RSS][%s] Error parse RSS: %s\n", source.Query, err)
 			}
 		case models.Twitter:
