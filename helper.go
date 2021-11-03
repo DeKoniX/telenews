@@ -155,7 +155,7 @@ func (teleNews *teleNewsStruct) parseNews() {
 				teleNews.logger.Printf("[ERR][RSS][%s] Error parse RSS: %s\n", source.Query, err)
 			}
 		case models.Twitter:
-			parseNews, err = teleNews.parser.ParseTwitter(source.Query, "ru")
+			parseNews, err = teleNews.parser.ParseTwitter(source.Query)
 			if err != nil {
 				teleNews.logger.Printf("[ERR][TW][%s] Error parse Twitter: %s\n", source.Query, err)
 			}

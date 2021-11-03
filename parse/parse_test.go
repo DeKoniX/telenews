@@ -8,7 +8,6 @@ import (
 
 func TestTwitter(t *testing.T) {
 	const query = "#golang"
-	const lang = "ru"
 
 	var parseNews ParseNewsStruct
 
@@ -18,7 +17,7 @@ func TestTwitter(t *testing.T) {
 	var tokenSecret = os.Getenv("TwitterTokenSecret")
 
 	parseNews.InitTwitter(consumerKey, consumerSecret, token, tokenSecret)
-	twitterNews, err := parseNews.ParseTwitter(query, lang)
+	twitterNews, err := parseNews.ParseTwitter(query)
 	if err != nil {
 		t.Error("[ERR] Error parse Twitter: ", err)
 	}

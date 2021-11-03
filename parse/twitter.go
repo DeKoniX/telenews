@@ -15,8 +15,8 @@ func (ParseNews *ParseNewsStruct) InitTwitter(consumerKey, consumerSecret, token
 	ParseNews.twitter.client = twitter.NewClient(ParseNews.httpClient)
 }
 
-func (ParseNews ParseNewsStruct) ParseTwitter(query, lang string) (twitterNews []NewsStruct, err error) {
-	search, _, err := ParseNews.twitter.client.Search.Tweets(&twitter.SearchTweetParams{Query: query, Count: 10, Lang: lang})
+func (ParseNews ParseNewsStruct) ParseTwitter(query string) (twitterNews []NewsStruct, err error) {
+	search, _, err := ParseNews.twitter.client.Search.Tweets(&twitter.SearchTweetParams{Query: query, Count: 10})
 	if err != nil {
 		return twitterNews, err
 	}
