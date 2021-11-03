@@ -45,7 +45,7 @@ func (ParseNews ParseNewsStruct) ParseVKWall(query string, retry bool) (vkWallNe
 	q.Add("count", "5")
 	q.Add("filter", "owner")
 	q.Add("access_token", ParseNews.vk.secureKey)
-	q.Add("v", "5.44")
+	q.Add("v", "5.131")
 	uri.RawQuery = q.Encode()
 
 	resp, err := http.Get(uri.String())
