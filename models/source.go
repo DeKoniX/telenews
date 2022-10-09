@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/jinzhu/gorm"
@@ -19,7 +20,7 @@ type Source struct {
 	Type         SourceType
 	Query        string
 	Items        []Item
-	Error        string
+	Error        sql.NullString
 	NextTryAfter time.Time `gorm:"default:NULL"`
 	UserID       uint
 }

@@ -31,3 +31,4 @@ _testmain.go
 *.env
 vendor/
 telenews.yml
+.devcontainer

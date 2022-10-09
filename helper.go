@@ -148,10 +148,6 @@ func (teleNews *teleNewsStruct) parseNews() {
 		case models.RSS:
 			parseNews, err = teleNews.parser.ParseRSS(source.Query)
 			if err != nil {
-				now = time.Now()
-				source.NextTryAfter = now.Add(10 * time.Minute)
-				source.Error = fmt.Sprintf("[ERR][RSS][%s] Error parse RSS: %s\n", source.Query, err)
-				source.Save()
 				teleNews.logger.Printf("[ERR][RSS][%s] Error parse RSS: %s\n", source.Query, err)
 			}
 		case models.Twitter:
@@ -165,6 +161,19 @@ func (teleNews *teleNewsStruct) parseNews() {
 				teleNews.logger.Printf("[ERR][VKW][%s] Error parse VKWall: %s\n", source.Query, err)
 			}
 		}
+
+		if err != nil {
+			now = time.Now()
+			source.NextTryAfter = now.Add(10 * time.Minute)
+			source.Error.String = fmt.Sprintf("[ERR][%s][%s] Error parse %s: %s\n", source.Type, source.Query, source.Type, err)
+			source.Error.Valid = true
+			source.Save()
+		} else {
+			source.Error.String = ""
+			source.Error.Valid = false
+			source.Save()
+		}
+
 		for _, news := range parseNews {
 			var (
 				item     models.Item
@@ -203,6 +212,7 @@ func (teleNews *teleNewsStruct) parseNews() {
 				}
 			}
 		}
+
 		for _, news := range parseNews {
 			var item models.Item
 
