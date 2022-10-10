@@ -26,7 +26,12 @@ func (ParseNews ParseNewsStruct) ParseVKWall(query string, retry bool) (vkWallNe
 				Attachments []struct {
 					TypeAttach string `json:"type"`
 					Photo      struct {
-						Photo1280 string `json:"photo_1280"`
+						Sizes []struct {
+							Height   int    `json:"height"`
+							Url      string `json:"url"`
+							TypeSize string `json:"type"`
+							Width    int    `json:"width"`
+						}
 					}
 				}
 			}
@@ -84,13 +89,19 @@ func (ParseNews ParseNewsStruct) ParseVKWall(query string, retry bool) (vkWallNe
 		for id, attach := range news.Attachments {
 			if id != 0 {
 				if attach.TypeAttach == "photo" {
-					if attach.Photo.Photo1280 != "" {
-						vkWallNews = append(vkWallNews, NewsStruct{
-							Title: attach.Photo.Photo1280,
-							Link:  attach.Photo.Photo1280,
-							Hash:  itemHash,
-						})
+					var height int = 0
+					var vkWallPhoto NewsStruct
+					for _, photo := range attach.Photo.Sizes {
+						if height < photo.Height {
+							height = photo.Height
+							vkWallPhoto = NewsStruct{
+								Title: photo.Url,
+								Link:  photo.Url,
+								Hash:  itemHash,
+							}
+						}
 					}
+					vkWallNews = append(vkWallNews, vkWallPhoto)
 				}
 			}
 		}
