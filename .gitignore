@@ -26,9 +26,9 @@ _testmain.go
 *.db
 *.sqlite
 .idea/
-.vscode/
 *.log
 *.env
 vendor/
 telenews.yml
 .devcontainer
+__*

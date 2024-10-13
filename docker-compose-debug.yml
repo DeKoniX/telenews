@@ -1,0 +1,38 @@
+services:
+  telenews:
+    build:
+      context: .
+      dockerfile: Dockerfile.debug
+    tty: true
+    volumes:
+      - .:/usr/src/app
+    working_dir: /usr/src/app
+    networks:
+      - db
+    depends_on:
+      - db
+    ports:
+      - "2345:2345"
+    restart: always
+
+  db:
+    tty: true
+    image: postgres:10-alpine
+    volumes:
+      - ./docker/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+      - postgres-telenews:/var/lib/postgresql/data
+    environment:
+      DATABASE_NAME: telenews
+      DATABASE_USER: telenews
+      DATABASE_PASSWORD: 123456
+      POSTGRES_HOST_AUTH_METHOD: trust
+    networks:
+      - db
+    ports:
+      - 5554:5432
+
+networks:
+  db:
+
+volumes:
+  postgres-telenews: {}
