@@ -25,10 +25,16 @@ type ParseNewsStruct struct {
 }
 
 type NewsStruct struct {
-	Title string
-	MSG   string
-	Link  string
-	Hash  string
+	URL      string
+	PhotoURL []string
+	Title    string
+	MSG      string
+	Link     string
+	Hash     string
+}
+
+type PhotoStruct struct {
+	URL string
 }
 
 func (newsStruct *NewsStruct) GenHash(sourceID uint) (_ string) {

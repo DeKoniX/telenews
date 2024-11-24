@@ -1,19 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"log"
-
 	"os"
 	"time"
 
-	"fmt"
-
 	"github.com/DeKoniX/telenews/models"
 	"github.com/DeKoniX/telenews/parse"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-const version = "2.2.1"
+const version = "2.3.0"
 
 type teleNewsStruct struct {
 	bot    *tgbotapi.BotAPI
@@ -90,7 +88,7 @@ func (teleNews *teleNewsStruct) workNews() {
 	for {
 		timeNow = time.Now()
 		if timeNow.Minute()%2 == 0 {
-			if isWork == false {
+			if !isWork {
 				go teleNews.parseNews()
 				isWork = true
 				time.Sleep(time.Second * 30)

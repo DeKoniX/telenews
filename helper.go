@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
@@ -38,7 +38,7 @@ type configStruct struct {
 }
 
 func getConfig(configPath string) (config *configStruct, err error) {
-	dat, err := ioutil.ReadFile(configPath)
+	dat, err := os.ReadFile(configPath)
 	if err != nil {
 		return config, err
 	}
@@ -150,11 +150,6 @@ func (teleNews *teleNewsStruct) parseNews() {
 			if err != nil {
 				teleNews.logger.Printf("[ERR][RSS][%s] Error parse RSS: %s\n", source.Query, err)
 			}
-		case models.Twitter:
-			parseNews, err = teleNews.parser.ParseTwitter(source.Query)
-			if err != nil {
-				teleNews.logger.Printf("[ERR][TW][%s] Error parse Twitter: %s\n", source.Query, err)
-			}
 		case models.VKWall:
 			parseNews, err = teleNews.parser.ParseVKWall(source.Query, false)
 			if err != nil {
@@ -209,6 +204,10 @@ func (teleNews *teleNewsStruct) parseNews() {
 							"<a href=\""+item.Link+"\">"+item.Title+"</a>",
 						true,
 					)
+
+					if len(news.PhotoURL) > 0 {
+						teleNews.telegramSendPhotos(user.ChatID, news)
+					}
 				}
 			}
 		}

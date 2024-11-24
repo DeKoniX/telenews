@@ -4,7 +4,8 @@ import (
 	"time"
 
 	"github.com/DeKoniX/telenews/models"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/DeKoniX/telenews/parse"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 const telegramHelpMessage = "" +
@@ -18,7 +19,7 @@ const telegramHelpMessage = "" +
 	"/help - этот текст\n" +
 	"/version - текущая версия бота"
 
-const telegramListSource = "twitter, vk_wall, rss"
+const telegramListSource = "vk_wall, rss"
 
 func (teleNews *teleNewsStruct) telegramInit(token string) (err error) {
 	teleNews.bot, err = tgbotapi.NewBotAPI(token)
@@ -31,7 +32,7 @@ func (teleNews teleNewsStruct) telegramUpdate() {
 	updateCfg := tgbotapi.NewUpdate(0)
 	updateCfg.Timeout = 60
 
-	updates, _ := teleNews.bot.GetUpdatesChan(updateCfg)
+	updates := teleNews.bot.GetUpdatesChan(updateCfg)
 
 	for update := range updates {
 		if update.Message == nil {
@@ -121,5 +122,36 @@ func (teleNews *teleNewsStruct) telegramSendMessage(chatID int64, text string, m
 	_, err := teleNews.bot.Send(msg)
 	if err != nil {
 		teleNews.logger.Println("[ERR][Telegram] Error send message, chat ID: ", chatID, ": ", err, "\nMSG: ", text)
+	}
+}
+
+func (teleNews *teleNewsStruct) telegramSendPhotos(chatID int64, news parse.NewsStruct) {
+	msg := tgbotapi.NewMessage(chatID, news.Title)
+	_, err := teleNews.bot.Send(msg)
+	if err != nil {
+		teleNews.logger.Println("[ERR][Telegram] Error send message, chat ID: ", chatID, ": ", err, "\nMSG: ", news.Title)
+	}
+
+	if len(news.PhotoURL) > 0 {
+		var media []interface{}
+
+		for _, url := range news.PhotoURL {
+			media = append(media, tgbotapi.NewInputMediaPhoto(tgbotapi.FileURL(url)))
+		}
+
+		if len(media) > 1 {
+			for i := 0; i < len(media); i += 10 {
+				endIndex := i + 10
+				if endIndex > len(media) {
+					endIndex = len(media)
+				}
+				groupMedia := media[i:endIndex]
+				mediaGroup := tgbotapi.NewMediaGroup(chatID, groupMedia)
+				_, err := teleNews.bot.SendMediaGroup(mediaGroup)
+				if err != nil {
+					teleNews.logger.Println("[ERR][Telegram] Error send message, chat ID: ", chatID, ": ", err, "\nMSG: ", news.Title)
+				}
+			}
+		}
 	}
 }

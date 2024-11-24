@@ -3,7 +3,7 @@ package parse
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -59,7 +59,7 @@ func (ParseNews ParseNewsStruct) ParseVKWall(query string, retry bool) (vkWallNe
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return vkWallNews, err
 	}
@@ -72,7 +72,7 @@ func (ParseNews ParseNewsStruct) ParseVKWall(query string, retry bool) (vkWallNe
 	if vkjson.Error.ErrorCode != 0 {
 		return vkWallNews, fmt.Errorf("VK error code: %d error message: %s", vkjson.Error.ErrorCode, vkjson.Error.ErrorMsg)
 	}
-	if vkjson.Error.ErrorCode == 6 && retry == true {
+	if vkjson.Error.ErrorCode == 6 && retry {
 		time.Sleep(time.Second * time.Duration(rand.Intn(20)+20))
 		return ParseNews.ParseVKWall(query, true)
 	}
@@ -84,27 +84,23 @@ func (ParseNews ParseNewsStruct) ParseVKWall(query string, retry bool) (vkWallNe
 			MSG:   news.Text,
 			Link:  link,
 		}
-		itemHash := newsStruct.GenHash(ParseNews.SourceID)
-		vkWallNews = append(vkWallNews, newsStruct)
 		for id, attach := range news.Attachments {
 			if id != 0 {
 				if attach.TypeAttach == "photo" {
-					var height int = 0
-					var vkWallPhoto NewsStruct
+					var photoURL string
+					var height int
 					for _, photo := range attach.Photo.Sizes {
 						if height < photo.Height {
 							height = photo.Height
-							vkWallPhoto = NewsStruct{
-								Title: photo.Url,
-								Link:  photo.Url,
-								Hash:  itemHash,
-							}
+							photoURL = photo.Url
 						}
 					}
-					vkWallNews = append(vkWallNews, vkWallPhoto)
+					newsStruct.PhotoURL = append(newsStruct.PhotoURL, photoURL)
 				}
 			}
 		}
+		vkWallNews = append(vkWallNews, newsStruct)
 	}
+
 	return vkWallNews, nil
 }
