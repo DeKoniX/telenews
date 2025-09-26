@@ -162,10 +162,20 @@ func (teleNews *teleNewsStruct) parseNews() {
 			source.NextTryAfter = now.Add(10 * time.Minute)
 			source.Error.String = fmt.Sprintf("[ERR][%s][%s] Error parse %s: %s\n", source.Type, source.Query, source.Type, err)
 			source.Error.Valid = true
-			source.Save()
-		} else {
-			source.Error.String = ""
-			source.Error.Valid = false
+			if !source.ErrorNotified {
+				var user models.User
+				errUser := user.SelectById(source.UserID)
+				if errUser != nil {
+					teleNews.logger.Println("[ERR][DB] Select User for error notification: ", errUser)
+				} else {
+					teleNews.telegramSendMessage(
+						user.ChatID,
+						fmt.Sprintf("Ошибка при парсинге источника %s: %s\n%s", source.Query, source.Type, err),
+						false,
+					)
+				}
+				source.ErrorNotified = true
+			}
 			source.Save()
 		}
 
@@ -226,6 +236,11 @@ func (teleNews *teleNewsStruct) parseNews() {
 			_, err = item.Insert(source)
 			if err != nil && err != models.ErrAlreadyExists {
 				teleNews.logger.Println("[ERR][DB] Error insert item: ", err)
+			} else if err == nil {
+				source.Error.String = ""
+				source.Error.Valid = false
+				source.ErrorNotified = false
+				source.Save()
 			}
 		}
 	}

@@ -17,12 +17,13 @@ var (
 
 type Source struct {
 	gorm.Model
-	Type         SourceType
-	Query        string
-	Items        []Item
-	Error        sql.NullString
-	NextTryAfter time.Time `gorm:"default:NULL"`
-	UserID       uint
+	Type          SourceType
+	Query         string
+	Items         []Item
+	Error         sql.NullString
+	NextTryAfter  time.Time `gorm:"default:NULL"`
+	UserID        uint
+	ErrorNotified bool `gorm:"default:false"`
 }
 
 func (source *Source) Insert(user User) (_ int, _ error) {
