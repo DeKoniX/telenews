@@ -13,6 +13,7 @@ var (
 	Twitter SourceType = "twitter"
 	VKWall  SourceType = "vk_wall"
 	RSS     SourceType = "rss"
+	Twitch  SourceType = "twitch"
 )
 
 type Source struct {
@@ -24,6 +25,7 @@ type Source struct {
 	NextTryAfter  time.Time `gorm:"default:NULL"`
 	UserID        uint
 	ErrorNotified bool `gorm:"default:false"`
+	LastStreamID  string
 }
 
 func (source *Source) Insert(user User) (_ int, _ error) {
@@ -66,6 +68,11 @@ func (source Source) SelectByType(user User, sourceType SourceType) (sources []S
 
 func (source *Source) SelectByQueryAndType(user User, query string, sourceType SourceType) error {
 	err := db.Where("user_id = ? AND query = ? AND type = ?", user.ID, query, sourceType).First(&source).Error
+	return err
+}
+
+func (source *Source) SelectById(id uint) error {
+	err := db.First(&source, id).Error
 	return err
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
+	"github.com/nicklaw5/helix/v2"
 )
 
 type ParseNewsStruct struct {
@@ -20,6 +21,9 @@ type ParseNewsStruct struct {
 	}
 	vk struct {
 		secureKey string
+	}
+	twitch struct {
+		client *helix.Client
 	}
 	httpClient *http.Client
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/DeKoniX/telenews/models"
 	"github.com/DeKoniX/telenews/parse"
+	_ "github.com/nicklaw5/helix/v2"
 	"gopkg.in/yaml.v1"
 )
 
@@ -34,6 +35,10 @@ type configStruct struct {
 	}
 	Vk struct {
 		SecureKey string `yaml:"secureKey"`
+	}
+	Twitch struct {
+		ClientID     string `yaml:"clientID"`
+		ClientSecret string `yaml:"clientSecret"`
 	}
 }
 
@@ -67,6 +72,8 @@ func addSource(chatID int64, message string) (sou, query string, _ error) {
 		source.Type = models.VKWall
 	case "rss":
 		source.Type = models.RSS
+	case "twitch":
+		source.Type = models.Twitch
 	default:
 		return sou, query, errors.New("No source type")
 	}
@@ -113,6 +120,8 @@ func deleteSource(chatID int64, message string) (sou, query string, err error) {
 		source.Type = models.VKWall
 	case "rss":
 		source.Type = models.RSS
+	case "twitch":
+		source.Type = models.Twitch
 	default:
 		return sou, query, errors.New("No source type")
 	}
@@ -154,6 +163,11 @@ func (teleNews *teleNewsStruct) parseNews() {
 			parseNews, err = teleNews.parser.ParseVKWall(source.Query, false)
 			if err != nil {
 				teleNews.logger.Printf("[ERR][VKW][%s] Error parse VKWall: %s\n", source.Query, err)
+			}
+		case models.Twitch:
+			parseNews, err = teleNews.parser.ParseTwitch(source.Query)
+			if err != nil {
+				teleNews.logger.Printf("[ERR][Twitch][%s] Error parse Twitch: %s\n", source.Query, err)
 			}
 		}
 

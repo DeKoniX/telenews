@@ -61,6 +61,10 @@ func main() {
 		teleNews.config.Twitter.TokenSecret,
 	)
 	teleNews.parser.InitVK(teleNews.config.Vk.SecureKey)
+	teleNews.parser.InitTwitch(
+		teleNews.config.Twitch.ClientID,
+		teleNews.config.Twitch.ClientSecret,
+	)
 
 	err = teleNews.telegramInit(teleNews.config.Telegram.Token)
 	if err != nil {

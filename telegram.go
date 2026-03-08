@@ -19,7 +19,7 @@ const telegramHelpMessage = "" +
 	"/help - этот текст\n" +
 	"/version - текущая версия бота"
 
-const telegramListSource = "vk_wall, rss"
+const telegramListSource = "vk_wall, rss, twitch"
 
 func (teleNews *teleNewsStruct) telegramInit(token string) (err error) {
 	teleNews.bot, err = tgbotapi.NewBotAPI(token)

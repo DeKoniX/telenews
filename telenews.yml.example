@@ -10,6 +10,9 @@ twitter:
   tokenSecret:
 vk:
   secureKey:
+twitch:
+  clientID:
+  clientSecret:
 list:
   rss:
     - http://eve-ru.com/rss/indexfeed
