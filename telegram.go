@@ -1,8 +1,12 @@
 package main
 
 import (
+	"errors"
+	"html"
+	"net/url"
 	"strings"
 	"time"
+	"unicode/utf16"
 
 	"github.com/DeKoniX/telenews/models"
 	"github.com/DeKoniX/telenews/parse"
@@ -24,6 +28,10 @@ const telegramListSource = "vk_wall, rss"
 
 func (teleNews *teleNewsStruct) telegramInit(token string) (err error) {
 	teleNews.bot, err = tgbotapi.NewBotAPI(token)
+	var requestErr *url.Error
+	if errors.As(err, &requestErr) {
+		return requestErr.Err
+	}
 	return err
 }
 
@@ -135,27 +143,109 @@ func (teleNews *teleNewsStruct) telegramSendMessage(chatID int64, text string, m
 	}
 }
 
-func (teleNews *teleNewsStruct) telegramSendPhotos(chatID int64, news parse.NewsStruct) {
-	msg := tgbotapi.NewMessage(chatID, news.Title)
-	_, err := teleNews.bot.Send(msg)
-	if err != nil {
-		teleNews.logger.Println("[ERR][Telegram] Error send message, chat ID: ", chatID, ": ", err, "\nMSG: ", news.Title)
+type newsMedia struct {
+	url   string
+	video bool
+}
+
+func (teleNews *teleNewsStruct) telegramSendNews(chatID int64, news parse.NewsStruct) {
+	title := strings.TrimSpace(news.Title)
+	body := strings.TrimSpace(news.MSG)
+	var lines, visibleLines []string
+	if title != "" {
+		lines = append(lines, "<b>"+html.EscapeString(title)+"</b>")
+		visibleLines = append(visibleLines, title)
+	}
+	if body != "" && body != title {
+		lines = append(lines, html.EscapeString(body))
+		visibleLines = append(visibleLines, body)
+	}
+	for _, link := range news.VideoLinks {
+		lines = append(lines, `<a href="`+html.EscapeString(link)+`">Видео</a>`)
+		visibleLines = append(visibleLines, "Видео")
+	}
+	if news.Link != "" {
+		lines = append(lines, `<a href="`+html.EscapeString(news.Link)+`">Источник</a>`)
+		visibleLines = append(visibleLines, "Источник")
+	}
+	caption := strings.Join(lines, "\n")
+
+	var media []newsMedia
+	for _, url := range news.PhotoURL {
+		media = append(media, newsMedia{url: url})
+	}
+	for _, url := range news.VideoURL {
+		media = append(media, newsMedia{url: url, video: true})
+	}
+	if len(media) == 0 {
+		teleNews.telegramSendMessage(chatID, caption, true)
+		return
 	}
 
-	for start := 0; start < len(news.PhotoURL); start += 10 {
-		urls := news.PhotoURL[start:min(start+10, len(news.PhotoURL))]
-		var err error
-		if len(urls) == 1 {
-			_, err = teleNews.bot.Send(tgbotapi.NewPhoto(chatID, tgbotapi.FileURL(urls[0])))
-		} else {
-			media := make([]any, 0, len(urls))
-			for _, url := range urls {
-				media = append(media, tgbotapi.NewInputMediaPhoto(tgbotapi.FileURL(url)))
+	// Measure visible text, excluding HTML markup and escaped entities.
+	visible := strings.Join(visibleLines, "\n")
+	if len(utf16.Encode([]rune(visible))) > 1024 {
+		teleNews.telegramSendMessage(chatID, caption, true)
+		caption = ""
+	}
+	for start := 0; start < len(media); start += 10 {
+		batch := media[start:min(start+10, len(media))]
+		if len(batch) > 1 {
+			album := make([]any, 0, len(batch))
+			for i, item := range batch {
+				file := tgbotapi.FileURL(item.url)
+				if item.video {
+					video := tgbotapi.NewInputMediaVideo(file)
+					video.SupportsStreaming = true
+					if i == 0 {
+						video.Caption, video.ParseMode = caption, tgbotapi.ModeHTML
+					}
+					album = append(album, video)
+				} else {
+					photo := tgbotapi.NewInputMediaPhoto(file)
+					if i == 0 {
+						photo.Caption, photo.ParseMode = caption, tgbotapi.ModeHTML
+					}
+					album = append(album, photo)
+				}
 			}
-			_, err = teleNews.bot.SendMediaGroup(tgbotapi.NewMediaGroup(chatID, media))
+			_, err := teleNews.bot.SendMediaGroup(tgbotapi.NewMediaGroup(chatID, album))
+			if err == nil {
+				caption = ""
+				continue
+			}
+			teleNews.logger.Printf("[ERR][Telegram] Error send album, chat ID: %d: %s", chatID, err)
+			var apiErr *tgbotapi.Error
+			if !errors.As(err, &apiErr) || apiErr.Code != 400 {
+				return
+			}
 		}
-		if err != nil {
-			teleNews.logger.Printf("[ERR][Telegram] Error send photos, chat ID: %d: %s", chatID, err)
+
+		for _, item := range batch {
+			var err error
+			file := tgbotapi.FileURL(item.url)
+			if item.video {
+				video := tgbotapi.NewVideo(chatID, file)
+				video.Caption, video.ParseMode = caption, tgbotapi.ModeHTML
+				video.SupportsStreaming = true
+				_, err = teleNews.bot.Send(video)
+			} else {
+				photo := tgbotapi.NewPhoto(chatID, file)
+				photo.Caption, photo.ParseMode = caption, tgbotapi.ModeHTML
+				_, err = teleNews.bot.Send(photo)
+			}
+			if err == nil {
+				caption = ""
+				continue
+			}
+			teleNews.logger.Printf("[ERR][Telegram] Error send media, chat ID: %d: %s", chatID, err)
+			var apiErr *tgbotapi.Error
+			if !errors.As(err, &apiErr) || apiErr.Code != 400 {
+				return
+			}
 		}
+	}
+	if caption != "" {
+		teleNews.telegramSendMessage(chatID, caption, true)
 	}
 }

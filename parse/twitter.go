@@ -28,7 +28,8 @@ func (p ParseNewsStruct) ParseTwitter(query string) ([]NewsStruct, error) {
 func (p ParseNewsStruct) parseTwitter(client *http.Client, query string) ([]NewsStruct, error) {
 	params := url.Values{
 		"query":        {"(" + query + ") -is:retweet -is:reply"},
-		"expansions":   {"author_id"},
+		"expansions":   {"author_id,attachments.media_keys"},
+		"media.fields": {"type,url,variants"},
 		"tweet.fields": {"author_id"},
 		"user.fields":  {"name,username"},
 		"max_results":  {"10"},
@@ -55,12 +56,25 @@ func (p ParseNewsStruct) parseTwitter(client *http.Client, query string) ([]News
 	}
 	var result struct {
 		Data []struct {
-			ID       string `json:"id"`
-			Text     string `json:"text"`
-			AuthorID string `json:"author_id"`
+			ID          string `json:"id"`
+			Text        string `json:"text"`
+			AuthorID    string `json:"author_id"`
+			Attachments struct {
+				MediaKeys []string `json:"media_keys"`
+			}
 		} `json:"data"`
 		Includes struct {
 			Users []author `json:"users"`
+			Media []struct {
+				Key      string `json:"media_key"`
+				Type     string
+				URL      string
+				Variants []struct {
+					URL         string
+					BitRate     int    `json:"bit_rate"`
+					ContentType string `json:"content_type"`
+				}
+			}
 		} `json:"includes"`
 		Errors []struct {
 			Title string `json:"title"`
@@ -77,6 +91,24 @@ func (p ParseNewsStruct) parseTwitter(client *http.Client, query string) ([]News
 	for _, user := range result.Includes.Users {
 		authors[user.ID] = user
 	}
+	attachments := make(map[string]NewsStruct, len(result.Includes.Media))
+	for _, media := range result.Includes.Media {
+		item := NewsStruct{}
+		if media.Type == "photo" && media.URL != "" {
+			item.PhotoURL = []string{media.URL}
+		}
+		var video string
+		var rate int
+		for _, variant := range media.Variants {
+			if variant.ContentType == "video/mp4" && variant.URL != "" && (video == "" || variant.BitRate < rate) {
+				video, rate = variant.URL, variant.BitRate
+			}
+		}
+		if video != "" {
+			item.VideoURL = []string{video}
+		}
+		attachments[media.Key] = item
+	}
 	news := make([]NewsStruct, 0, len(result.Data))
 	for _, post := range result.Data {
 		user := authors[post.AuthorID]
@@ -88,11 +120,17 @@ func (p ParseNewsStruct) parseTwitter(client *http.Client, query string) ([]News
 		if handle == "" {
 			handle = "i/web"
 		}
-		news = append(news, NewsStruct{
+		item := NewsStruct{
 			Title: title,
 			MSG:   post.Text,
 			Link:  "https://x.com/" + handle + "/status/" + post.ID,
-		})
+		}
+		for _, key := range post.Attachments.MediaKeys {
+			media := attachments[key]
+			item.PhotoURL = append(item.PhotoURL, media.PhotoURL...)
+			item.VideoURL = append(item.VideoURL, media.VideoURL...)
+		}
+		news = append(news, item)
 	}
 	return news, nil
 }

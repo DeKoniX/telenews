@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"html"
 	"os"
 	"strings"
 	"time"
@@ -44,6 +43,13 @@ func getConfig(configPath string) (config *configStruct, err error) {
 	err = yaml.Unmarshal(dat, &config)
 	if err != nil {
 		return config, err
+	}
+
+	if config == nil {
+		config = &configStruct{}
+	}
+	if token := strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN")); token != "" {
+		config.Telegram.Token = token
 	}
 
 	return config, nil
@@ -209,18 +215,8 @@ func (teleNews *teleNewsStruct) parseNews() {
 					teleNews.logger.Println("[ERR][DB] Select User: ", err)
 				}
 
-				if !firstRun {
-					teleNews.telegramSendMessage(
-						user.ChatID,
-						"<b>"+html.EscapeString(item.Title)+"</b>\n"+
-							html.EscapeString(item.Text)+"\n"+
-							"<a href=\""+html.EscapeString(item.Link)+"\">"+html.EscapeString(item.Title)+"</a>",
-						true,
-					)
-
-					if len(news.PhotoURL) > 0 {
-						teleNews.telegramSendPhotos(user.ChatID, news)
-					}
+				if !firstRun && err == nil {
+					teleNews.telegramSendNews(user.ChatID, news)
 				}
 			}
 		}

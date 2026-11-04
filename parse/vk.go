@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -20,26 +21,32 @@ func (p ParseNewsStruct) ParseVKWall(query string) ([]NewsStruct, error) {
 }
 
 func (p ParseNewsStruct) parseVKWall(client *http.Client, query string) ([]NewsStruct, error) {
+	type attachment struct {
+		Type  string
+		Photo struct {
+			Sizes []struct {
+				Height int
+				URL    string
+				Width  int
+			}
+		}
+		Video struct {
+			ID      int
+			OwnerID int `json:"owner_id"`
+			Player  string
+			Files   map[string]string
+		}
+	}
+	type post struct {
+		ID          int
+		OwnerID     int `json:"owner_id"`
+		Text        string
+		Attachments []attachment
+		CopyHistory []post `json:"copy_history"`
+	}
 	type vkJSON struct {
 		Response struct {
-			Items []struct {
-				Id          int    `json:"id"`
-				FromID      int    `json:"from_id"`
-				OwnerID     int    `json:"owner_id"`
-				Date        int64  `json:"date"`
-				Text        string `json:"text"`
-				Attachments []struct {
-					TypeAttach string `json:"type"`
-					Photo      struct {
-						Sizes []struct {
-							Height   int    `json:"height"`
-							Url      string `json:"url"`
-							TypeSize string `json:"type"`
-							Width    int    `json:"width"`
-						}
-					}
-				}
-			}
+			Items []post
 		}
 		Error struct {
 			ErrorCode int    `json:"error_code"`
@@ -78,28 +85,55 @@ func (p ParseNewsStruct) parseVKWall(client *http.Client, query string) ([]NewsS
 
 	vkWallNews := make([]NewsStruct, 0, len(vkjson.Response.Items))
 	for _, news := range vkjson.Response.Items {
-		link := fmt.Sprintf("https://vk.com/%s?w=wall%v_%v", query, news.OwnerID, news.Id)
+		link := fmt.Sprintf("https://vk.com/%s?w=wall%v_%v", query, news.OwnerID, news.ID)
 		newsStruct := NewsStruct{
 			Title: query,
 			MSG:   news.Text,
 			Link:  link,
 		}
-		for _, attach := range news.Attachments {
-			if attach.TypeAttach != "photo" {
-				continue
-			}
-			var photoURL string
-			var area int
-			for _, photo := range attach.Photo.Sizes {
-				if photo.Url != "" && (photoURL == "" || photo.Width*photo.Height > area) {
-					area = photo.Width * photo.Height
-					photoURL = photo.Url
+		var collectAttachments func(post)
+		collectAttachments = func(post post) {
+			for _, attach := range post.Attachments {
+				switch attach.Type {
+				case "photo":
+					var photoURL string
+					var area int
+					for _, photo := range attach.Photo.Sizes {
+						if photo.URL != "" && (photoURL == "" || photo.Width*photo.Height > area) {
+							area = photo.Width * photo.Height
+							photoURL = photo.URL
+						}
+					}
+					if photoURL != "" {
+						newsStruct.PhotoURL = append(newsStruct.PhotoURL, photoURL)
+					}
+				case "video":
+					video := attach.Video
+					var file string
+					var resolution int
+					for key, candidate := range video.Files {
+						if suffix, ok := strings.CutPrefix(key, "mp4_"); ok {
+							height, err := strconv.Atoi(suffix)
+							if err == nil && height > 0 && candidate != "" && (file == "" || height < resolution) {
+								file, resolution = candidate, height
+							}
+						}
+					}
+					if file != "" {
+						newsStruct.VideoURL = append(newsStruct.VideoURL, file)
+					}
+					if video.OwnerID != 0 && video.ID != 0 {
+						newsStruct.VideoLinks = append(newsStruct.VideoLinks, fmt.Sprintf("https://vk.com/video%d_%d", video.OwnerID, video.ID))
+					} else if video.Player != "" {
+						newsStruct.VideoLinks = append(newsStruct.VideoLinks, video.Player)
+					}
 				}
 			}
-			if photoURL != "" {
-				newsStruct.PhotoURL = append(newsStruct.PhotoURL, photoURL)
+			for _, copy := range post.CopyHistory {
+				collectAttachments(copy)
 			}
 		}
+		collectAttachments(news)
 		vkWallNews = append(vkWallNews, newsStruct)
 	}
 

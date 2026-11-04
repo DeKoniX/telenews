@@ -2,7 +2,7 @@ general:
   log_dir: ./
   debug: false
 telegram:
-  token:
+  token: # Optional when TELEGRAM_BOT_TOKEN is exported.
 twitter:
   bearerToken: # Optional X API v2 app token. Enables polling of Twitter subscriptions.
 vk:

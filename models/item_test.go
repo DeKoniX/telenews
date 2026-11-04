@@ -2,6 +2,8 @@ package models
 
 import (
 	"testing"
+
+	"github.com/DeKoniX/telenews/parse"
 )
 
 func TestItem(t *testing.T) {
@@ -71,7 +73,8 @@ func TestItem(t *testing.T) {
 }
 
 func appendItem(source Source, title, text string) (item Item, err error) {
-	item = Item{Title: title, Text: text}
+	news := parse.NewsStruct{Title: title, MSG: text}
+	item = Item{Title: title, Text: text, Hash: news.GenHash(source.ID)}
 	_, err = item.Insert(source)
 
 	return item, err

@@ -15,12 +15,14 @@ type ParseNewsStruct struct {
 }
 
 type NewsStruct struct {
-	URL      string
-	PhotoURL []string
-	Title    string
-	MSG      string
-	Link     string
-	Hash     string
+	URL        string
+	PhotoURL   []string
+	VideoURL   []string
+	VideoLinks []string
+	Title      string
+	MSG        string
+	Link       string
+	Hash       string
 }
 
 type PhotoStruct struct {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/DeKoniX/telenews/parse"
@@ -28,12 +29,17 @@ func TestTelegramPhotoBatches(t *testing.T) {
 				case "/bottest/getMe":
 					result = `{"id":1,"is_bot":true,"first_name":"Test"}`
 				case "/bottest/sendMessage":
+					t.Error("unexpected separate text message")
 				case "/bottest/sendPhoto":
+					if len(received) == 0 && !strings.Contains(r.Form.Get("caption"), "News") {
+						t.Error("missing photo caption")
+					}
 					received = append(received, r.Form.Get("photo"))
 				case "/bottest/sendMediaGroup":
 					var media []struct {
-						Type  string `json:"type"`
-						Media string `json:"media"`
+						Caption string `json:"caption"`
+						Type    string `json:"type"`
+						Media   string `json:"media"`
 					}
 					if err := json.Unmarshal([]byte(r.Form.Get("media")), &media); err != nil {
 						t.Error(err)
@@ -42,6 +48,9 @@ func TestTelegramPhotoBatches(t *testing.T) {
 						t.Errorf("invalid album size: %d", len(media))
 					}
 					for _, photo := range media {
+						if len(received) == 0 && !strings.Contains(photo.Caption, "News") {
+							t.Error("missing album caption")
+						}
 						if photo.Type != "photo" {
 							t.Errorf("unexpected media type: %s", photo.Type)
 						}
@@ -68,12 +77,65 @@ func TestTelegramPhotoBatches(t *testing.T) {
 			app := teleNewsStruct{bot: bot, logger: log.New(io.Discard, "", 0)}
 
 			// When
-			app.telegramSendPhotos(42, news)
+			app.telegramSendNews(42, news)
 
 			// Then: every photo is delivered exactly once, in order.
 			if !reflect.DeepEqual(received, news.PhotoURL) {
 				t.Fatalf("received %v, want %v", received, news.PhotoURL)
 			}
 		})
+	}
+}
+
+func TestTelegramRejectedMixedAlbumKeepsCaption(t *testing.T) {
+	var methods []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Error(err)
+		}
+		method := strings.TrimPrefix(r.URL.Path, "/bottest/")
+		methods = append(methods, method)
+		switch method {
+		case "getMe":
+			io.WriteString(w, `{"ok":true,"result":{"id":1,"is_bot":true}}`)
+			return
+		case "sendMediaGroup":
+			var album []struct {
+				Type    string `json:"type"`
+				Caption string `json:"caption"`
+			}
+			if err := json.Unmarshal([]byte(r.Form.Get("media")), &album); err != nil {
+				t.Error(err)
+			}
+			if len(album) != 2 || album[0].Type != "photo" || album[1].Type != "video" ||
+				!strings.Contains(album[0].Caption, "A &lt; B") || album[1].Caption != "" {
+				t.Errorf("unexpected album: %+v", album)
+			}
+			fallthrough
+		case "sendPhoto":
+			io.WriteString(w, `{"ok":false,"error_code":400,"description":"fixture rejected media"}`)
+			return
+		case "sendVideo":
+			if !strings.Contains(r.Form.Get("caption"), "A &lt; B") || r.Form.Get("parse_mode") != "HTML" {
+				t.Error("video did not receive the caption")
+			}
+		default:
+			t.Errorf("unexpected method %q", method)
+		}
+		io.WriteString(w, `{"ok":true,"result":{}}`)
+	}))
+	defer server.Close()
+	bot, err := tgbotapi.NewBotAPIWithClient("test", server.URL+"/bot%s/%s", server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := teleNewsStruct{bot: bot, logger: log.New(io.Discard, "", 0)}
+	app.telegramSendNews(42, parse.NewsStruct{
+		Title: "Test", MSG: "A < B", Link: "https://example.com/news",
+		PhotoURL: []string{"https://example.com/missing.jpg"},
+		VideoURL: []string{"https://example.com/clip.mp4"},
+	})
+	if want := []string{"getMe", "sendMediaGroup", "sendPhoto", "sendVideo"}; !reflect.DeepEqual(methods, want) {
+		t.Fatalf("methods = %v, want %v", methods, want)
 	}
 }
