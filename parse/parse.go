@@ -23,6 +23,7 @@ type NewsStruct struct {
 	MSG        string
 	Link       string
 	Hash       string
+	IsRSS      bool
 }
 
 type PhotoStruct struct {
@@ -33,7 +34,10 @@ func (newsStruct *NewsStruct) GenHash(sourceID uint) (_ string) {
 	h := md5.New()
 	io.WriteString(h, strconv.Itoa(int(sourceID)))
 	io.WriteString(h, newsStruct.Title)
-	io.WriteString(h, newsStruct.MSG)
+	// RSS announcements are presentation-only; preserve existing deduplication keys.
+	if !newsStruct.IsRSS {
+		io.WriteString(h, newsStruct.MSG)
+	}
 	io.WriteString(h, newsStruct.Link)
 	newsStruct.Hash = fmt.Sprintf("%x", h.Sum(nil))
 

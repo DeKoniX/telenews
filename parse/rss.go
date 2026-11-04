@@ -54,7 +54,10 @@ func (ParseNews ParseNewsStruct) ParseRSS(feedURL string) (rssNews []NewsStruct,
 }
 
 func rssItem(item *gofeed.Item, feedURL string) NewsStruct {
-	news := NewsStruct{Title: item.Title, Link: item.Link}
+	news := NewsStruct{
+		Title: item.Title, Link: item.Link,
+		MSG: rssAnnouncement(item.Description), IsRSS: true,
+	}
 	base, err := url.Parse(feedURL)
 	if err != nil {
 		return news
@@ -131,4 +134,33 @@ func rssItem(item *gofeed.Item, feedURL string) NewsStruct {
 		}
 	}
 	return news
+}
+
+// rssAnnouncement uses only the feed's description, never the full article.
+func rssAnnouncement(description string) string {
+	doc, err := html.Parse(strings.NewReader(description))
+	if err != nil {
+		return ""
+	}
+	var text strings.Builder
+	var visit func(*html.Node)
+	visit = func(node *html.Node) {
+		if node.Type == html.ElementNode {
+			switch node.Data {
+			case "script", "style", "noscript", "template":
+				return
+			case "p", "div", "br", "li", "ul", "ol", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6", "tr", "td", "th":
+				text.WriteByte(' ')
+				defer text.WriteByte(' ')
+			}
+		}
+		if node.Type == html.TextNode {
+			text.WriteString(node.Data)
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			visit(child)
+		}
+	}
+	visit(doc)
+	return strings.Join(strings.Fields(text.String()), " ")
 }

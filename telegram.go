@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"html"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf16"
@@ -168,7 +170,26 @@ func (teleNews *teleNewsStruct) telegramSendNews(chatID int64, news parse.NewsSt
 		lines = append(lines, `<a href="`+html.EscapeString(news.Link)+`">Источник</a>`)
 		visibleLines = append(visibleLines, "Источник")
 	}
-	caption := strings.Join(lines, "\n")
+	separator := "\n"
+	if body != "" && body != title {
+		separator = "\n\n"
+	}
+	caption := strings.Join(lines, separator)
+	if news.IsRSS {
+		preview, _ := json.Marshal(struct {
+			IsDisabled bool   `json:"is_disabled"`
+			URL        string `json:"url"`
+		}{URL: news.Link})
+		_, err := teleNews.bot.MakeRequest("sendMessage", tgbotapi.Params{
+			"chat_id": strconv.FormatInt(chatID, 10), "text": caption,
+			"parse_mode": tgbotapi.ModeHTML, "link_preview_options": string(preview),
+		})
+		if err != nil {
+			teleNews.logger.Printf("[ERR][Telegram] Error send RSS text, chat ID: %d: %s", chatID, err)
+		}
+		// RSS uses a single text message; Telegram supplies the article preview.
+		return
+	}
 
 	var media []newsMedia
 	for _, url := range news.PhotoURL {
@@ -178,13 +199,15 @@ func (teleNews *teleNewsStruct) telegramSendNews(chatID int64, news parse.NewsSt
 		media = append(media, newsMedia{url: url, video: true})
 	}
 	if len(media) == 0 {
-		teleNews.telegramSendMessage(chatID, caption, true)
+		if caption != "" {
+			teleNews.telegramSendMessage(chatID, caption, true)
+		}
 		return
 	}
 
 	// Measure visible text, excluding HTML markup and escaped entities.
-	visible := strings.Join(visibleLines, "\n")
-	if len(utf16.Encode([]rune(visible))) > 1024 {
+	visible := strings.Join(visibleLines, separator)
+	if caption != "" && len(utf16.Encode([]rune(visible))) > 1024 {
 		teleNews.telegramSendMessage(chatID, caption, true)
 		caption = ""
 	}

@@ -87,6 +87,112 @@ func TestTelegramPhotoBatches(t *testing.T) {
 	}
 }
 
+func TestRSSAnnouncementDelivery(t *testing.T) {
+	for _, count := range []int{0, 1, 2, 11} {
+		t.Run(fmt.Sprint(count), func(t *testing.T) {
+			var delivered string
+			var calls []string
+			var photos int
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if err := r.ParseForm(); err != nil {
+					t.Error(err)
+				}
+				switch r.URL.Path {
+				case "/feed":
+					io.WriteString(w, `<rss version="2.0"><channel><title>Feed</title><item><title>News</title><link>https://example.com/article</link><description><![CDATA[<p>Игра A &amp; B</p>]]></description>`)
+					for i := range count {
+						fmt.Fprintf(w, `<enclosure url="https://example.com/%d.jpg" type="image/jpeg"/>`, i)
+					}
+					io.WriteString(w, `</item></channel></rss>`)
+				case "/bottest/getMe":
+					io.WriteString(w, `{"ok":true,"result":{"id":1,"is_bot":true}}`)
+				case "/bottest/sendMessage":
+					calls = append(calls, "text")
+					delivered = r.Form.Get("text")
+					var preview struct {
+						Disabled bool   `json:"is_disabled"`
+						URL      string `json:"url"`
+					}
+					if err := json.Unmarshal([]byte(r.Form.Get("link_preview_options")), &preview); err != nil || preview.Disabled || preview.URL != "https://example.com/article" {
+						t.Errorf("missing explicit article preview: %q", r.Form.Get("link_preview_options"))
+					}
+					io.WriteString(w, `{"ok":true,"result":{}}`)
+				case "/bottest/sendPhoto":
+					calls = append(calls, "media")
+					photos++
+					if r.Form.Get("caption") != "" {
+						t.Error("RSS photo repeats text")
+					}
+					io.WriteString(w, `{"ok":true,"result":{}}`)
+				case "/bottest/sendMediaGroup":
+					calls = append(calls, "media")
+					var album []struct {
+						Caption string `json:"caption"`
+					}
+					if err := json.Unmarshal([]byte(r.Form.Get("media")), &album); err != nil {
+						t.Error(err)
+					}
+					for _, item := range album {
+						if item.Caption != "" {
+							t.Error("RSS album repeats text")
+						}
+					}
+					photos += len(album)
+					io.WriteString(w, `{"ok":true,"result":[]}`)
+				default:
+					t.Errorf("unexpected request: %s", r.URL.Path)
+				}
+			}))
+			defer server.Close()
+			news, err := (parse.ParseNewsStruct{}).ParseRSS(server.URL + "/feed")
+			if err != nil || len(news) != 1 {
+				t.Fatalf("RSS parse: %v, items: %d", err, len(news))
+			}
+			bot, err := tgbotapi.NewBotAPIWithClient("test", server.URL+"/bot%s/%s", server.Client())
+			if err != nil {
+				t.Fatal(err)
+			}
+			app := teleNewsStruct{bot: bot, logger: log.New(io.Discard, "", 0)}
+			app.telegramSendNews(42, news[0])
+			if want := "<b>News</b>\n\nИгра A &amp; B\n\n<a href=\"https://example.com/article\">Источник</a>"; delivered != want {
+				t.Fatalf("delivered %q, want %q", delivered, want)
+			}
+			if len(calls) != 1 || calls[0] != "text" || photos != 0 {
+				t.Fatalf("calls=%v, photos=%d; want one text message and no photos", calls, photos)
+			}
+			textCalls := 0
+			for _, call := range calls {
+				if call == "text" {
+					textCalls++
+				}
+			}
+			if textCalls != 1 {
+				t.Fatalf("sent text %d times", textCalls)
+			}
+		})
+	}
+}
+
+func TestRSSFailedTextDoesNotSendMedia(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/bottest/getMe":
+			io.WriteString(w, `{"ok":true,"result":{"id":1,"is_bot":true}}`)
+		case "/bottest/sendMessage":
+			io.WriteString(w, `{"ok":false,"error_code":400,"description":"fixture rejected text"}`)
+		default:
+			t.Errorf("media sent after text failure: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	bot, err := tgbotapi.NewBotAPIWithClient("test", server.URL+"/bot%s/%s", server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := teleNewsStruct{bot: bot, logger: log.New(io.Discard, "", 0)}
+	app.telegramSendNews(42, parse.NewsStruct{IsRSS: true, Title: "News", MSG: "Summary", Link: "https://example.com/article", PhotoURL: []string{"https://example.com/a.jpg"}})
+}
+
 func TestTelegramRejectedMixedAlbumKeepsCaption(t *testing.T) {
 	var methods []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
