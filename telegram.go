@@ -82,18 +82,19 @@ func (teleNews teleNewsStruct) telegramUpdate() {
 				}
 				teleNews.telegramSendMessage(update.Message.Chat.ID, "Доступные источники: "+sources, false)
 			case "add":
-				sourceType, _, _ := strings.Cut(strings.TrimSpace(update.Message.CommandArguments()), " ")
+				_, args := splitFirstWord(update.Message.Text)
+				sourceType, _ := splitFirstWord(args)
 				if sourceType == string(models.Twitter) && !teleNews.parser.TwitterEnabled() {
 					teleNews.telegramSendMessage(update.Message.Chat.ID, "Поиск X не настроен администратором бота.", false)
 					continue
 				}
-				if update.Message.CommandArguments() == "" {
+				if args == "" {
 					teleNews.telegramSendMessage(update.Message.Chat.ID, "Для добавления источника, ипользуйте синтаксис команды:\n <code>/add source url</code> \n Например: <code>/add vk_wall golang</code>\n/source - покажет список доступных для использования источников", true)
 				} else {
 					var user models.User
 					err = user.SelectByChatId(update.Message.Chat.ID)
 					if user.UserName != "" {
-						sou, query, err := addSource(update.Message.Chat.ID, update.Message.CommandArguments())
+						sou, query, err := addSource(update.Message.Chat.ID, args)
 						if err != nil {
 							teleNews.telegramSendMessage(update.Message.Chat.ID, "Не смог добавить источник, поправте команду или обратитесь к администратору", false)
 						} else {
@@ -113,10 +114,11 @@ func (teleNews teleNewsStruct) telegramUpdate() {
 					}
 				}
 			case "del":
+				_, args := splitFirstWord(update.Message.Text)
 				var user models.User
 				user.SelectByChatId(update.Message.Chat.ID)
 				if user.UserName != "" {
-					sou, query, err := deleteSource(update.Message.Chat.ID, update.Message.CommandArguments())
+					sou, query, err := deleteSource(update.Message.Chat.ID, args)
 					if err != nil {
 						teleNews.telegramSendMessage(update.Message.Chat.ID, "Не смог удалить источник, поправте команду или обратитесь к администратору", false)
 					} else {

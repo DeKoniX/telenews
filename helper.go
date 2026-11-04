@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/DeKoniX/telenews/models"
 	"github.com/DeKoniX/telenews/parse"
@@ -55,16 +56,24 @@ func getConfig(configPath string) (config *configStruct, err error) {
 	return config, nil
 }
 
-func addSource(chatID int64, message string) (sou, query string, _ error) {
+func splitFirstWord(text string) (word, rest string) {
+	text = strings.TrimSpace(text)
+	if i := strings.IndexFunc(text, unicode.IsSpace); i >= 0 {
+		return text[:i], strings.TrimSpace(text[i:])
+	}
+	return text, ""
+}
+
+func addSource(chatID int64, message string) (string, string, error) {
 	var user models.User
 	var source models.Source
 
 	user.SelectByChatId(chatID)
-	messageSplit := strings.SplitN(strings.TrimSpace(message), " ", 2)
-	if len(messageSplit) < 2 || strings.TrimSpace(messageSplit[1]) == "" {
-		return sou, query, errors.New("Wrong message :" + message)
+	sourceType, query := splitFirstWord(message)
+	if query == "" {
+		return "", "", errors.New("Wrong message :" + message)
 	}
-	switch messageSplit[0] {
+	switch sourceType {
 	case "twitter":
 		source.Type = models.Twitter
 	case "vk_wall":
@@ -72,13 +81,13 @@ func addSource(chatID int64, message string) (sou, query string, _ error) {
 	case "rss":
 		source.Type = models.RSS
 	default:
-		return sou, query, errors.New("No source type")
+		return "", "", errors.New("No source type")
 	}
 
-	source.Query = strings.TrimSpace(messageSplit[1])
+	source.Query = query
 	_, err := source.Insert(user)
 
-	return messageSplit[0], source.Query, err
+	return sourceType, query, err
 }
 
 func listSource(chatID int64) (msg string, err error) {
@@ -106,11 +115,11 @@ func deleteSource(chatID int64, message string) (sou, query string, err error) {
 	var source models.Source
 
 	user.SelectByChatId(chatID)
-	messageSplit := strings.SplitN(strings.TrimSpace(message), " ", 2)
-	if len(messageSplit) < 2 || strings.TrimSpace(messageSplit[1]) == "" {
-		return sou, query, errors.New("Wrong message :" + message)
+	sourceType, sourceQuery := splitFirstWord(message)
+	if sourceQuery == "" {
+		return "", "", errors.New("Wrong message :" + message)
 	}
-	switch messageSplit[0] {
+	switch sourceType {
 	case "twitter":
 		source.Type = models.Twitter
 	case "vk_wall":
@@ -121,11 +130,11 @@ func deleteSource(chatID int64, message string) (sou, query string, err error) {
 		return sou, query, errors.New("No source type")
 	}
 
-	err = source.SelectByQueryAndType(user, strings.TrimSpace(messageSplit[1]), source.Type)
+	err = source.SelectByQueryAndType(user, sourceQuery, source.Type)
 	if err != nil {
 		return sou, query, err
 	}
-	return messageSplit[0], source.Query, source.Delete()
+	return sourceType, source.Query, source.Delete()
 }
 
 func (teleNews *teleNewsStruct) parseNews() {
