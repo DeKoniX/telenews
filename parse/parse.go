@@ -4,24 +4,14 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
-	"net/http"
 	"strconv"
-
-	"github.com/dghubble/go-twitter/twitter"
-	"github.com/dghubble/oauth1"
 )
 
 type ParseNewsStruct struct {
-	SourceID uint
-	twitter  struct {
-		config *oauth1.Config
-		token  *oauth1.Token
-		client *twitter.Client
-	}
-	vk struct {
+	twitterBearerToken string
+	vk                 struct {
 		secureKey string
 	}
-	httpClient *http.Client
 }
 
 type NewsStruct struct {

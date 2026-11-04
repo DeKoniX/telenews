@@ -2,6 +2,7 @@ package parse
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/mmcdole/gofeed"
 )
@@ -14,24 +15,22 @@ type userAgentTransport struct {
 }
 
 func (t *userAgentTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	t.base = http.DefaultTransport
-	newReq := req
-	newReq.Header = make(http.Header)
-	for k, vv := range req.Header {
-		newReq.Header[k] = vv
-	}
+	newReq := req.Clone(req.Context())
 	newReq.Header.Set("User-Agent", t.userAgent)
 	return t.base.RoundTrip(newReq)
 }
 
 func HTTPClient(client *http.Client, userAgent string) *http.Client {
 	c := *client
+	if c.Transport == nil {
+		c.Transport = http.DefaultTransport
+	}
 	c.Transport = &userAgentTransport{base: c.Transport, userAgent: userAgent}
 	return &c
 }
 
 func (ParseNews ParseNewsStruct) ParseRSS(url string) (rssNews []NewsStruct, err error) {
-	httpClient := HTTPClient(&http.Client{}, FirefoxUserAgent)
+	httpClient := HTTPClient(&http.Client{Timeout: 15 * time.Second}, FirefoxUserAgent)
 	fp := gofeed.NewParser()
 	fp.Client = httpClient
 

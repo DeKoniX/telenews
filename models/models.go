@@ -16,13 +16,12 @@ var (
 
 func Init(address, username, password, dbname string) (err error) {
 	pgurl := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", username, password, address, dbname)
-	fmt.Println(pgurl)
 
 	db, err = gorm.Open("postgres", pgurl)
 	if err != nil {
 		return err
 	}
-	db.LogMode(false) //LOGMODE
+	db.LogMode(false) // LOGMODE
 
 	db.AutoMigrate(&User{}, &Source{}, &Item{})
 

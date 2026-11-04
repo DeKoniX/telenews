@@ -1,57 +1,109 @@
 package parse
 
 import (
-	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 )
 
-func TestTwitter(t *testing.T) {
-	const query = "#golang"
+type testTransport func(*http.Request) (*http.Response, error)
 
-	var parseNews ParseNewsStruct
+func (f testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
 
-	var consumerKey = os.Getenv("TwitterConsumerKey")
-	var consumerSecret = os.Getenv("TwitterConsumerSecret")
-	var token = os.Getenv("TwitterToken")
-	var tokenSecret = os.Getenv("TwitterTokenSecret")
+func TestTwitterSearchMapsAuthor(t *testing.T) {
+	var parser ParseNewsStruct
+	parser.InitTwitter("test-token")
+	client := &http.Client{Transport: testTransport(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/2/tweets/search/recent" || req.Header.Get("Authorization") != "Bearer test-token" ||
+			req.URL.Query().Get("query") != "(from:golang #go) -is:retweet -is:reply" ||
+			req.URL.Query().Get("expansions") != "author_id" {
+			t.Fatalf("unexpected X request: %s %s", req.Method, req.URL)
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{
+			"data":[{"id":"100","text":"A < B","author_id":"42"}],
+			"includes":{"users":[{"id":"42","name":"The Go Team","username":"golang"}]}
+		}`))}, nil
+	})}
 
-	parseNews.InitTwitter(consumerKey, consumerSecret, token, tokenSecret)
-	twitterNews, err := parseNews.ParseTwitter(query)
-	if err != nil {
-		t.Error("[ERR] Error parse Twitter: ", err)
+	news, err := parser.parseTwitter(client, "from:golang #go")
+
+	if err != nil || len(news) != 1 || news[0].Title != "The Go Team" || news[0].MSG != "A < B" ||
+		news[0].Link != "https://x.com/golang/status/100" {
+		t.Fatalf("unexpected X news: %+v, %v", news, err)
 	}
-	for _, news := range twitterNews {
-		fmt.Printf("\nTitle: %s\nMSG: %s\nLink: %s\n", news.Title, news.MSG, news.Link)
+}
+
+func TestVKWallIncludesFirstPhoto(t *testing.T) {
+	var parser ParseNewsStruct
+	parser.InitVK("test-token")
+	client := &http.Client{Transport: testTransport(func(req *http.Request) (*http.Response, error) {
+		if err := req.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		if req.Method != http.MethodPost || req.PostForm.Get("access_token") != "test-token" ||
+			req.PostForm.Get("v") != "5.199" || req.URL.RawQuery != "" {
+			t.Fatalf("unexpected VK request: %s %s", req.Method, req.URL)
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{
+			"response":{"items":[{"id":12,"owner_id":-34,"attachments":[{"type":"photo","photo":{"sizes":[
+				{"width":100,"height":100,"url":"https://example.com/small.jpg"},
+				{"width":200,"height":100,"url":"https://example.com/large.jpg"}
+			]}}]}]}
+		}`))}, nil
+	})}
+
+	news, err := parser.parseVKWall(client, "golang")
+
+	if err != nil || len(news) != 1 || len(news[0].PhotoURL) != 1 || news[0].PhotoURL[0] != "https://example.com/large.jpg" {
+		t.Fatalf("unexpected VK news: %+v, %v", news, err)
 	}
 }
 
 func TestRSS(t *testing.T) {
-	const parseURL = "https://habrahabr.ru/rss/feed/posts/all/6b25bce297b3816483def22b2404be8e/?with_hubs=true?with_hubs=true"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.UserAgent() != FirefoxUserAgent {
+			t.Errorf("unexpected User-Agent: %q", req.UserAgent())
+		}
+		if _, err := io.WriteString(w, `<rss version="2.0"><channel><title>Test</title>
+			<item><title>Go news</title><link>https://example.com/news</link></item>
+		</channel></rss>`); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer server.Close()
 
-	var parseNews ParseNewsStruct
+	news, err := (ParseNewsStruct{}).ParseRSS(server.URL)
 
-	rssNews, err := parseNews.ParseRSS(parseURL)
-	if err != nil {
-		t.Error("[ERR] Error parse RSS: ", err)
-	}
-	for _, news := range rssNews {
-		fmt.Printf("\nTitle: %s\nMSG: %s\nLink: %s\n", news.Title, news.MSG, news.Link)
+	if err != nil || len(news) != 1 || news[0].Title != "Go news" || news[0].Link != "https://example.com/news" {
+		t.Fatalf("unexpected RSS news: %+v, %v", news, err)
 	}
 }
 
-func TestVkWall(t *testing.T) {
-	const query = "golang"
-
-	var parseNews ParseNewsStruct
-	parseNews.vk.secureKey = os.Getenv("VkSecureKey")
-
-	vkWallNews, err := parseNews.ParseVKWall(query, false)
-	if err != nil {
-		t.Error("[ERR] Error parse VkWall: ", err)
+func TestTwitterLive(t *testing.T) {
+	token := os.Getenv("X_BEARER_TOKEN")
+	if token == "" {
+		t.Skip("set X_BEARER_TOKEN to run the live X search")
 	}
+	var parser ParseNewsStruct
+	parser.InitTwitter(token)
+	if _, err := parser.ParseTwitter("#golang"); err != nil {
+		t.Fatal(err)
+	}
+}
 
-	for _, news := range vkWallNews {
-		fmt.Printf("\nTitle: %s\nMSG: %s\nLink: %s\n", news.Title, news.MSG, news.Link)
+func TestVKWallLive(t *testing.T) {
+	token := os.Getenv("VkSecureKey")
+	if token == "" {
+		t.Skip("set VkSecureKey to run the live VK wall request")
+	}
+	var parser ParseNewsStruct
+	parser.InitVK(token)
+	if _, err := parser.ParseVKWall("golang"); err != nil {
+		t.Fatal(err)
 	}
 }

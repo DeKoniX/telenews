@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"time"
 
 	"github.com/DeKoniX/telenews/models"
@@ -13,9 +14,9 @@ const telegramHelpMessage = "" +
 	"/start - запускает бот\n" +
 	"/stop - останавливает бота и удаляет пользователя\n" +
 	"/source - показать список доступных источников\n" +
-	"/add - добавляет источник в бота - <code>/add twitter #golang</code>\n" +
+	"/add - добавляет источник в бота - <code>/add rss https://example.com/feed.xml</code>\n" +
 	"/list - показать ваш список слежения\n" +
-	"/del - удалить ваш источник по его id - <code>/del twitter #golang</code>\n" +
+	"/del - удалить ваш источник - <code>/del rss https://example.com/feed.xml</code>\n" +
 	"/help - этот текст\n" +
 	"/version - текущая версия бота"
 
@@ -65,8 +66,17 @@ func (teleNews teleNewsStruct) telegramUpdate() {
 					}
 				}
 			case "source":
-				teleNews.telegramSendMessage(update.Message.Chat.ID, "Доступный список источников с которыми может работать бот: "+telegramListSource, false)
+				sources := telegramListSource
+				if teleNews.parser.TwitterEnabled() {
+					sources += ", twitter"
+				}
+				teleNews.telegramSendMessage(update.Message.Chat.ID, "Доступные источники: "+sources, false)
 			case "add":
+				sourceType, _, _ := strings.Cut(strings.TrimSpace(update.Message.CommandArguments()), " ")
+				if sourceType == string(models.Twitter) && !teleNews.parser.TwitterEnabled() {
+					teleNews.telegramSendMessage(update.Message.Chat.ID, "Поиск X не настроен администратором бота.", false)
+					continue
+				}
 				if update.Message.CommandArguments() == "" {
 					teleNews.telegramSendMessage(update.Message.Chat.ID, "Для добавления источника, ипользуйте синтаксис команды:\n <code>/add source url</code> \n Например: <code>/add vk_wall golang</code>\n/source - покажет список доступных для использования источников", true)
 				} else {
@@ -132,26 +142,20 @@ func (teleNews *teleNewsStruct) telegramSendPhotos(chatID int64, news parse.News
 		teleNews.logger.Println("[ERR][Telegram] Error send message, chat ID: ", chatID, ": ", err, "\nMSG: ", news.Title)
 	}
 
-	if len(news.PhotoURL) > 0 {
-		var media []interface{}
-
-		for _, url := range news.PhotoURL {
-			media = append(media, tgbotapi.NewInputMediaPhoto(tgbotapi.FileURL(url)))
-		}
-
-		if len(media) > 1 {
-			for i := 0; i < len(media); i += 10 {
-				endIndex := i + 10
-				if endIndex > len(media) {
-					endIndex = len(media)
-				}
-				groupMedia := media[i:endIndex]
-				mediaGroup := tgbotapi.NewMediaGroup(chatID, groupMedia)
-				_, err := teleNews.bot.SendMediaGroup(mediaGroup)
-				if err != nil {
-					teleNews.logger.Println("[ERR][Telegram] Error send message, chat ID: ", chatID, ": ", err, "\nMSG: ", news.Title)
-				}
+	for start := 0; start < len(news.PhotoURL); start += 10 {
+		urls := news.PhotoURL[start:min(start+10, len(news.PhotoURL))]
+		var err error
+		if len(urls) == 1 {
+			_, err = teleNews.bot.Send(tgbotapi.NewPhoto(chatID, tgbotapi.FileURL(urls[0])))
+		} else {
+			media := make([]any, 0, len(urls))
+			for _, url := range urls {
+				media = append(media, tgbotapi.NewInputMediaPhoto(tgbotapi.FileURL(url)))
 			}
+			_, err = teleNews.bot.SendMediaGroup(tgbotapi.NewMediaGroup(chatID, media))
+		}
+		if err != nil {
+			teleNews.logger.Printf("[ERR][Telegram] Error send photos, chat ID: %d: %s", chatID, err)
 		}
 	}
 }

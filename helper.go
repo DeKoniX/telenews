@@ -3,13 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"html"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/DeKoniX/telenews/models"
 	"github.com/DeKoniX/telenews/parse"
-	"gopkg.in/yaml.v1"
+	"go.yaml.in/yaml/v3"
 )
 
 type configStruct struct {
@@ -27,10 +28,7 @@ type configStruct struct {
 		Token string `yaml:"token"`
 	}
 	Twitter struct {
-		ConsumerKey    string `yaml:"consumerKey"`
-		ConsumerSecret string `yaml:"consumerSecret"`
-		Token          string `yaml:"token"`
-		TokenSecret    string `yaml:"tokenSecret"`
+		BearerToken string `yaml:"bearerToken"`
 	}
 	Vk struct {
 		SecureKey string `yaml:"secureKey"`
@@ -56,8 +54,8 @@ func addSource(chatID int64, message string) (sou, query string, _ error) {
 	var source models.Source
 
 	user.SelectByChatId(chatID)
-	messageSplit := strings.Split(message, " ")
-	if len(messageSplit) < 2 {
+	messageSplit := strings.SplitN(strings.TrimSpace(message), " ", 2)
+	if len(messageSplit) < 2 || strings.TrimSpace(messageSplit[1]) == "" {
 		return sou, query, errors.New("Wrong message :" + message)
 	}
 	switch messageSplit[0] {
@@ -71,7 +69,7 @@ func addSource(chatID int64, message string) (sou, query string, _ error) {
 		return sou, query, errors.New("No source type")
 	}
 
-	source.Query = messageSplit[1]
+	source.Query = strings.TrimSpace(messageSplit[1])
 	_, err := source.Insert(user)
 
 	return messageSplit[0], source.Query, err
@@ -102,8 +100,8 @@ func deleteSource(chatID int64, message string) (sou, query string, err error) {
 	var source models.Source
 
 	user.SelectByChatId(chatID)
-	messageSplit := strings.Split(message, " ")
-	if len(messageSplit) < 2 {
+	messageSplit := strings.SplitN(strings.TrimSpace(message), " ", 2)
+	if len(messageSplit) < 2 || strings.TrimSpace(messageSplit[1]) == "" {
 		return sou, query, errors.New("Wrong message :" + message)
 	}
 	switch messageSplit[0] {
@@ -117,23 +115,21 @@ func deleteSource(chatID int64, message string) (sou, query string, err error) {
 		return sou, query, errors.New("No source type")
 	}
 
-	err = source.SelectByQueryAndType(user, messageSplit[1], source.Type)
+	err = source.SelectByQueryAndType(user, strings.TrimSpace(messageSplit[1]), source.Type)
 	if err != nil {
 		return sou, query, err
 	}
-	err = source.Delete()
-
-	return messageSplit[0], source.Query, nil
+	return messageSplit[0], source.Query, source.Delete()
 }
 
 func (teleNews *teleNewsStruct) parseNews() {
 	// TODO: сделать обработку нового источника, отправка последней новости, и/или сообщение о нормальном работе источника
-	var parseNews []parse.NewsStruct
 	sources, err := models.Source{}.SelectTryAll()
 	if err != nil {
 		teleNews.logger.Println("[ERR][DB] Error select all")
 	}
 	for _, source := range sources {
+		var parseNews []parse.NewsStruct
 		firstRun := false
 		var item models.Item
 		var now time.Time
@@ -143,15 +139,22 @@ func (teleNews *teleNewsStruct) parseNews() {
 			firstRun = true
 		}
 
-		teleNews.parser.SourceID = source.ID
 		switch source.Type {
+		case models.Twitter:
+			if !teleNews.parser.TwitterEnabled() {
+				continue
+			}
+			parseNews, err = teleNews.parser.ParseTwitter(source.Query)
+			if err != nil {
+				teleNews.logger.Printf("[ERR][TWIT][%s] Error parse X: %s\n", source.Query, err)
+			}
 		case models.RSS:
 			parseNews, err = teleNews.parser.ParseRSS(source.Query)
 			if err != nil {
 				teleNews.logger.Printf("[ERR][RSS][%s] Error parse RSS: %s\n", source.Query, err)
 			}
 		case models.VKWall:
-			parseNews, err = teleNews.parser.ParseVKWall(source.Query, false)
+			parseNews, err = teleNews.parser.ParseVKWall(source.Query)
 			if err != nil {
 				teleNews.logger.Printf("[ERR][VKW][%s] Error parse VKWall: %s\n", source.Query, err)
 			}
@@ -209,9 +212,9 @@ func (teleNews *teleNewsStruct) parseNews() {
 				if !firstRun {
 					teleNews.telegramSendMessage(
 						user.ChatID,
-						"<b>"+item.Title+"</b>\n"+
-							item.Text+"\n"+
-							"<a href=\""+item.Link+"\">"+item.Title+"</a>",
+						"<b>"+html.EscapeString(item.Title)+"</b>\n"+
+							html.EscapeString(item.Text)+"\n"+
+							"<a href=\""+html.EscapeString(item.Link)+"\">"+html.EscapeString(item.Title)+"</a>",
 						true,
 					)
 

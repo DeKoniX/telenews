@@ -5,7 +5,7 @@ import (
 )
 
 func TestItem(t *testing.T) {
-	connectDB()
+	connectDB(t)
 
 	// testUser: username: TestUser, chatID: 123
 	user, err := createUser("TestUser", 123)

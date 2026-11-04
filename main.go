@@ -27,7 +27,7 @@ func main() {
 	// Get config
 	teleNews.config, err = getConfig("telenews.yml")
 	if err != nil {
-		teleNews.logger.Println("[ERR][CFG] Error read config file: ", err)
+		log.Println("[ERR][CFG] Error read config file: ", err)
 		os.Exit(1)
 	}
 
@@ -54,12 +54,7 @@ func main() {
 	}
 
 	// Parse Initial
-	teleNews.parser.InitTwitter(
-		teleNews.config.Twitter.ConsumerKey,
-		teleNews.config.Twitter.ConsumerSecret,
-		teleNews.config.Twitter.Token,
-		teleNews.config.Twitter.TokenSecret,
-	)
+	teleNews.parser.InitTwitter(teleNews.config.Twitter.BearerToken)
 	teleNews.parser.InitVK(teleNews.config.Vk.SecureKey)
 
 	err = teleNews.telegramInit(teleNews.config.Telegram.Token)
@@ -80,22 +75,11 @@ func main() {
 }
 
 func (teleNews *teleNewsStruct) workNews() {
-	var timeNow time.Time
-	isWork := false
+	ticker := time.NewTicker(2 * time.Minute)
+	defer ticker.Stop()
 
-	go teleNews.parseNews()
-	time.Sleep(time.Minute * 1)
-	for {
-		timeNow = time.Now()
-		if timeNow.Minute()%2 == 0 {
-			if !isWork {
-				go teleNews.parseNews()
-				isWork = true
-				time.Sleep(time.Second * 30)
-			}
-		} else {
-			isWork = false
-		}
-		time.Sleep(time.Second * 20)
+	teleNews.parseNews()
+	for range ticker.C {
+		teleNews.parseNews()
 	}
 }

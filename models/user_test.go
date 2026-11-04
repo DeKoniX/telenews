@@ -3,7 +3,7 @@ package models
 import "testing"
 
 func TestUser(t *testing.T) {
-	connectDB()
+	connectDB(t)
 
 	// testUser: username: TestUser, chatID: 123
 	user, err := createUser("TestUser", 123)

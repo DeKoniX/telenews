@@ -4,10 +4,7 @@ general:
 telegram:
   token:
 twitter:
-  consumerKey:
-  consumerSecret:
-  token:
-  tokenSecret:
+  bearerToken: # Optional X API v2 app token. Enables polling of Twitter subscriptions.
 vk:
   secureKey:
 list:
